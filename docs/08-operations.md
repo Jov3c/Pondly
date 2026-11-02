@@ -126,7 +126,7 @@ HTTPS 环境使用 `__Host-` 管理 Cookie，HTTP 本地开发自动退回普通
 PONDLY_DATABASE_URL='postgres://…' go run ./cmd/pondly-moderator
 ```
 
-`PONDLY_MODERATION_INTERVAL`（默认 10s，如 `5s`）和 `PONDLY_MODERATION_BATCH`（默认 50，最大 200）可调。生产 systemd 模板见 `infra/systemd/pondly-moderator.service`；Web/Next.js 仍需单独的 systemd 单元与 vhost。
+`PONDLY_MODERATION_INTERVAL`（默认 10s，如 `5s`）和 `PONDLY_MODERATION_BATCH`（默认 50，最大 200）可调。生产 systemd 模板见 `infra/systemd/pondly-moderator.service` 和 `infra/systemd/pondly-web.service`；Web 仍需要单独的 HTTPS vhost。
 
 **迁移执行**：先在测试库完成 `schema_migrations` 账本与 checksum 校验，冻结的 0001 后以 0002 增量升级；未知数据库状态必须停止并人工核实。不应在未有真实 PostgreSQL 日志前标记数据库迁移已验证。
 

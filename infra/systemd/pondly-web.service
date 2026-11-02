@@ -1,0 +1,32 @@
+[Unit]
+Description=Pondly Web (Next.js standalone)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pondly-web
+Group=pondly-web
+WorkingDirectory=/opt/pondly/web
+EnvironmentFile=/etc/pondly/web.env
+ExecStart=/usr/bin/node /opt/pondly/web/server.js
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/pondly/web/.next
+CapabilityBoundingSet=
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+SystemCallArchitectures=native
+LimitNOFILE=4096
+MemoryMax=1G
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target
