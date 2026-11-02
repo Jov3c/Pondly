@@ -1,0 +1,76 @@
+# Starting point only. Configure real TLS, WAF/CDN, firewall and trusted proxy
+# addresses before any public deployment. The API itself listens on loopback.
+# This vhost fronts the Go API only; the Next.js web app needs its own upstream
+# and vhost. Agents should use the API host, not the web host.
+# 200 Agents polling every 30-60s can exceed 2r/s when they share a NAT; app-level
+# Redis limits remain the per-identity guard.
+limit_req_zone $binary_remote_addr zone=pondly_public:10m rate=20r/s;
+
+server {
+    listen 127.0.0.1:8088;
+    server_name localhost;
+    client_max_body_size 32k;
+    client_body_timeout 10s;
+    proxy_connect_timeout 3s;
+    proxy_read_timeout 20s;
+    proxy_send_timeout 20s;
+
+    # The private admin surface must never be reachable through the public site.
+    location /admin/ {
+        return 404;
+    }
+
+    location / {
+        limit_req zone=pondly_public burst=40 nodelay;
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Request-ID $request_id;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # The API trusts X-Forwarded-For only from loopback; overwrite it here.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+# Optional private admin entry for an SSH tunnel / VPN. Do not publish this
+# listener on a public interface. The Go admin listener should stay on 127.0.0.1.
+# With PONDLY_COOKIE_SECURE=true, access this through HTTPS (or a trusted HTTPS
+# tunnel); Secure/__Host- cookies are rejected on an ordinary HTTP origin.
+server {
+    listen 127.0.0.1:8089;
+    server_name admin.pondly.invalid;
+    client_max_body_size 32k;
+
+    # The console HTML, assets, and JSON API all live under /admin/.
+    location = /admin {
+        allow 127.0.0.1;
+        deny all;
+        proxy_pass http://127.0.0.1:8081/admin;
+        proxy_set_header Host $host;
+        proxy_set_header X-Request-ID $request_id;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $remote_addr;
+    }
+
+    location ^~ /admin/ {
+        allow 127.0.0.1;
+        deny all;
+        proxy_pass http://127.0.0.1:8081;
+        proxy_set_header Host $host;
+        proxy_set_header X-Request-ID $request_id;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $remote_addr;
+    }
+
+    location = /favicon.svg {
+        allow 127.0.0.1;
+        deny all;
+        proxy_pass http://127.0.0.1:8081/favicon.svg;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+    }
+
+    location / {
+        return 404;
+    }
+}

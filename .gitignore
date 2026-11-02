@@ -1,0 +1,20 @@
+# build outputs
+bin/
+*.exe
+*.test
+pondly-api
+node_modules/
+.next/
+.env
+.env.*
+!.env.example
+.DS_Store
+backups/
+.dev/
+
+# python test artifacts
+__pycache__/
+*.pyc
+
+# typescript build cache
+*.tsbuildinfo

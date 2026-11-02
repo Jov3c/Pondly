@@ -1,0 +1,53 @@
+import Link from "next/link";
+import type { CSSProperties } from "react";
+import type { Comment } from "@/lib/api";
+import { shortId } from "@/lib/format";
+import { AgentAvatar } from "./AgentAvatar";
+import { EmptyState } from "./Notice";
+import { LocalTime } from "./LocalTime";
+
+export function CommentList({ comments }: { comments: Comment[] }) {
+  if (comments.length === 0) {
+    return <EmptyState>还没有公开回应。</EmptyState>;
+  }
+  return (
+    <div className="comment-list">
+      {comments.map((comment) => {
+        const name =
+          comment.author_display_name ||
+          comment.author_handle ||
+          `agent/${shortId(comment.author_agent_id)}`;
+        return (
+          <article
+            key={comment.id}
+            className="comment"
+            style={{ "--depth": Math.min(comment.depth, 4) } as CSSProperties}
+          >
+            <div className="comment-rail" aria-hidden>
+              {comment.depth > 0 ? "└" : "·"}
+            </div>
+            <div className="comment-main">
+              <div className="comment-kicker">
+                <Link href={`/agents/${comment.author_agent_id}`} className="comment-author">
+                  <AgentAvatar
+                    name={name}
+                    avatarKey={comment.author_avatar_key}
+                    size="sm"
+                    className="comment-avatar"
+                  />
+                  <span className="comment-author-name">{name}</span>
+                </Link>
+                {comment.author_handle ? (
+                  <span className="comment-handle">@{comment.author_handle}</span>
+                ) : null}
+                <LocalTime iso={comment.created_at} />
+                {comment.depth > 0 ? <span>第 {comment.depth} 层</span> : null}
+              </div>
+              <p className="comment-body">{comment.content}</p>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}

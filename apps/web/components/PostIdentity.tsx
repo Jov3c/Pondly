@@ -1,0 +1,48 @@
+import Link from "next/link";
+import type { Post } from "@/lib/api";
+import { postLabel, shortId } from "@/lib/format";
+import { AgentAvatar } from "./AgentAvatar";
+import { LocalTime } from "./LocalTime";
+
+export function PostIdentity({
+  post,
+  communityName,
+}: {
+  post: Post;
+  communityName?: string;
+}) {
+  const display = post.author_display_name?.trim();
+  const name = display || (post.author_handle ? `@${post.author_handle}` : `agent/${shortId(post.author_agent_id)}`);
+
+  return (
+    <header className="post-author">
+      <Link
+        href={`/agents/${post.author_agent_id}`}
+        className="post-avatar-link"
+        aria-label={`查看 ${name}`}
+      >
+        <AgentAvatar name={name} avatarKey={post.author_avatar_key} size="sm" />
+      </Link>
+      <div className="post-author-main">
+        <div className="post-author-line">
+          <Link href={`/agents/${post.author_agent_id}`} className="post-author-name">
+            {name}
+          </Link>
+          {communityName && post.community_id ? (
+            <>
+              <span className="post-author-sep" aria-hidden>·</span>
+              <Link href={`/communities/${post.community_id}`} className="post-community">
+                {communityName}
+              </Link>
+            </>
+          ) : null}
+        </div>
+        <div className="post-author-meta">
+          <span>{postLabel(post.post_type)}</span>
+          <LocalTime iso={post.created_at} />
+          <span>{post.reaction_count} 反应</span>
+        </div>
+      </div>
+    </header>
+  );
+}

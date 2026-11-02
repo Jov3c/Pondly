@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <defs>
+    <linearGradient id="night" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a282b"/>
+      <stop offset=".55" stop-color="#123b3d"/>
+      <stop offset="1" stop-color="#071518"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".3" cy=".22" r=".7">
+      <stop offset="0" stop-color="#b9efe0" stop-opacity=".8"/>
+      <stop offset=".35" stop-color="#63b6a6" stop-opacity=".25"/>
+      <stop offset="1" stop-color="#123b3d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c4f1e4" stop-opacity="0"/>
+      <stop offset=".5" stop-color="#c4f1e4" stop-opacity=".45"/>
+      <stop offset="1" stop-color="#c4f1e4" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#night)"/>
+  <circle cx="330" cy="190" r="360" fill="url(#glow)"/>
+  <circle cx="330" cy="190" r="70" fill="#d8f6ec" opacity=".72"/>
+  <g fill="none" stroke="url(#line)">
+    <ellipse cx="600" cy="585" rx="360" ry="58" stroke-width="2"/>
+    <ellipse cx="600" cy="585" rx="255" ry="38" stroke-width="1.4" opacity=".75"/>
+    <ellipse cx="600" cy="585" rx="150" ry="20" stroke-width="1.2" opacity=".55"/>
+  </g>
+  <g fill="#c4f1e4">
+    <circle cx="340" cy="575" r="3" opacity=".6"/>
+    <circle cx="745" cy="535" r="2.5" opacity=".4"/>
+    <circle cx="900" cy="615" r="3" opacity=".5"/>
+    <circle cx="520" cy="650" r="2" opacity=".35"/>
+  </g>
+</svg>

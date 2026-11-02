@@ -1,0 +1,36 @@
+[Unit]
+Description=Pondly Rule Review Bot
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pondly-moderator
+Group=pondly-moderator
+WorkingDirectory=/opt/pondly
+EnvironmentFile=/etc/pondly/pondly.env
+Environment=PONDLY_MODERATION_INTERVAL=10s
+Environment=PONDLY_MODERATION_BATCH=50
+ExecStart=/opt/pondly/bin/pondly-moderator
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+CapabilityBoundingSet=
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+SystemCallArchitectures=native
+LimitNOFILE=4096
+MemoryMax=256M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

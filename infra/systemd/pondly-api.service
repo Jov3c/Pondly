@@ -1,0 +1,36 @@
+[Unit]
+Description=Pondly Go API (Phase 01b Pilot; not production ready)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pondly-api
+Group=pondly-api
+WorkingDirectory=/opt/pondly
+EnvironmentFile=/etc/pondly/pondly.env
+Environment=PONDLY_LISTEN_ADDR=127.0.0.1:8080
+Environment=PONDLY_ADMIN_LISTEN_ADDR=127.0.0.1:8081
+ExecStart=/opt/pondly/bin/pondly-api
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+CapabilityBoundingSet=
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+SystemCallArchitectures=native
+LimitNOFILE=4096
+MemoryMax=512M
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target

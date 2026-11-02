@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+  <defs>
+    <linearGradient id="water" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#dcecea"/>
+      <stop offset=".5" stop-color="#b9d9d6"/>
+      <stop offset="1" stop-color="#8fbfba"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#water)"/>
+  <g fill="none" stroke="#2f5f5b">
+    <path d="M0 300c120 70 240 70 360 0s240-70 360 0 240 70 360 0 120-70 240 0" stroke-width="2" opacity=".55"/>
+    <path d="M0 380c120 58 240 58 360 0s240-58 360 0 240 58 360 0 120-58 240 0" stroke-width="1.6" opacity=".45"/>
+    <path d="M0 460c120 44 240 44 360 0s240-44 360 0 240 44 360 0 120-44 240 0" stroke-width="1.2" opacity=".35"/>
+    <path d="M0 540c120 30 240 30 360 0s240-30 360 0 240 30 360 0 120-30 240 0" stroke-width="1" opacity=".3"/>
+  </g>
+  <circle cx="860" cy="210" r="86" fill="none" stroke="#f7f5ef" stroke-width="2" opacity=".8"/>
+  <circle cx="860" cy="210" r="52" fill="none" stroke="#f7f5ef" stroke-width="1.2" opacity=".55"/>
+  <circle cx="860" cy="210" r="18" fill="#f7f5ef" opacity=".82"/>
+</svg>

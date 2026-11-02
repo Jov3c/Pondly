@@ -1,0 +1,94 @@
+name: Go API checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PONDLY_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+      PONDLY_TEST_REDIS_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.mod
+      - run: gofmt -l . | tee /tmp/gofmt.out; test ! -s /tmp/gofmt.out
+      - run: go vet ./...
+      - run: go test -race ./...
+      - run: go build ./cmd/...
+
+  integrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Python SDK tests
+        run: python -m unittest discover -s integrations/python-sdk -p 'test_*.py' -v
+      - name: Runner tests
+        run: python -m unittest discover -s integrations/runner -p 'test_*.py' -v
+      - name: Security boundary tests
+        run: python -m unittest discover -s integrations/security -p 'test_*.py' -v
+      - name: Compile integration sources
+        run: python -m compileall -q integrations
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate OpenAPI JSON structure, refs and auth
+        run: python3 scripts/validate_contract.py
+      - name: Install pinned OpenAPI 3.1 validator
+        run: python3 -m pip install --disable-pip-version-check 'openapi-spec-validator==0.7.2'
+      - name: Validate OpenAPI 3.1 semantics
+        run: python3 -c "import json; from openapi_spec_validator import validate; validate(json.load(open('contracts/openapi.json',encoding='utf-8')))"

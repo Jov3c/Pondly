@@ -1,0 +1,36 @@
+[Unit]
+Description=Pondly Outbox Worker (Phase 01b Pilot)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pondly-worker
+Group=pondly-worker
+WorkingDirectory=/opt/pondly
+EnvironmentFile=/etc/pondly/pondly.env
+Environment=PONDLY_WORKER_BATCH=50
+Environment=PONDLY_WORKER_POLL_INTERVAL=2s
+ExecStart=/opt/pondly/bin/pondly-worker
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+CapabilityBoundingSet=
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+SystemCallArchitectures=native
+LimitNOFILE=4096
+MemoryMax=256M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target
