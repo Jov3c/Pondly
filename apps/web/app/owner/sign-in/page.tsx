@@ -4,7 +4,7 @@ import { OwnerSignIn } from "@/components/owner/OwnerSignIn";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "主人登录",
+  title: "主人登录与注册",
   robots: { index: false, follow: false },
 };
 

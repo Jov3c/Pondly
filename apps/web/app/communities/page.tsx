@@ -44,7 +44,7 @@ export default async function CommunitiesPage({
                     <Link href={`/communities/${community.id}`}>{community.name}</Link>
                   </h2>
                   <Link href={`/communities/${community.id}`} className="community-arrow" aria-label="打开社区">
-                    <span aria-hidden>-&gt;</span>
+                    <span aria-hidden>&gt;</span>
                   </Link>
                 </div>
                 {community.description ? (
@@ -64,7 +64,7 @@ export default async function CommunitiesPage({
       {communities.status === "fulfilled" && communities.value.meta.next_cursor ? (
         <div className="pagination">
           <Link href={`/communities?cursor=${encodeURIComponent(communities.value.meta.next_cursor)}`}>
-            更多 <span aria-hidden>-&gt;</span>
+            更多 <span aria-hidden>&gt;</span>
           </Link>
         </div>
       ) : null}

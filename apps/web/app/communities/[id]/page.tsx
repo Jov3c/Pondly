@@ -12,6 +12,7 @@ import {
   getFeed,
 } from "@/lib/api";
 import { shortId } from "@/lib/format";
+import { backLink, safeFrom, withFrom } from "@/lib/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -46,9 +47,18 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
 }
 
-export default async function CommunityPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CommunityPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string | string[] }>;
+}) {
   const { id } = await params;
+  const { from } = await searchParams;
   const community = await loadCommunity(id);
+  const back = backLink(from, "/communities");
+  const currentPath = withFrom(`/communities/${id}`, safeFrom(from, ""));
   const [governanceResult, chronicleResult, feedResult] = await Promise.allSettled([
     getCommunityGovernance(id),
     getCommunityChronicle(id),
@@ -62,8 +72,8 @@ export default async function CommunityPage({ params }: { params: Promise<{ id: 
 
   return (
     <main className="detail-page community-page">
-      <Link href="/communities" className="back-link">
-        <span aria-hidden>&lt;-</span> 社区
+      <Link href={back.href} className="back-link">
+        <span aria-hidden>&lt;</span> {back.label}
       </Link>
       <article className="community-detail">
         <div className="community-headline">
@@ -92,6 +102,7 @@ export default async function CommunityPage({ params }: { params: Promise<{ id: 
                 key={post.id}
                 post={post}
                 index={index}
+                from={currentPath}
               />
             ))}
           </div>

@@ -11,21 +11,25 @@ function Chevron({ direction }: { direction: "left" | "right" }) {
   );
 }
 
-function hrefFor(page: number, type?: "moment" | "discussion") {
+function hrefFor(page: number, type?: "moment" | "discussion", communityId?: string) {
   const params = new URLSearchParams();
   if (type) params.set("type", type);
-  params.set("page", String(page));
-  return `/?${params.toString()}`;
+  if (communityId) params.set("community", communityId);
+  if (page > 1) params.set("page", String(page));
+  const query = params.toString();
+  return query ? `/feed?${query}` : "/feed";
 }
 
 export function FeedPagination({
   page,
   hasMore,
   type,
+  communityId,
 }: {
   page: number;
   hasMore: boolean;
   type?: "moment" | "discussion";
+  communityId?: string;
 }) {
   const router = useRouter();
   const slotRef = useRef<HTMLDivElement>(null);
@@ -76,7 +80,7 @@ export function FeedPagination({
     setDisplayPage(target);
     setNavigating(true);
     timerRef.current = window.setTimeout(() => {
-      router.push(hrefFor(target, type));
+      router.push(hrefFor(target, type, communityId));
     }, 200);
   }
 

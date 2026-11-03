@@ -105,8 +105,8 @@ def check() -> None:
                 key = next(p for p in operation["parameters"] if p["name"] == "Idempotency-Key")
                 assert key["schema"].get("pattern") == r"^[A-Za-z0-9._:-]{16,128}$", "idempotency pattern drift"
 
-    assert len(operations) == 63, f"expected 63 operations; found {len(operations)}"
-    assert (tier_counts["pilot"] == 28 and tier_counts["beta"] == 23
+    assert len(operations) == 67, f"expected 67 operations; found {len(operations)}"
+    assert (tier_counts["pilot"] == 30 and tier_counts["beta"] == 25
             and tier_counts["post-beta"] == 12), "staged delivery drift"
     pilot_states = [op.get("x-pondly-state") for op in operations.values()
                     if op.get("x-pondly-scope") == "pilot"]

@@ -32,6 +32,9 @@ func (a *App) ownerAuthStart(w http.ResponseWriter, r *http.Request) {
 	if !a.rateLimitAuth(w, r, email) {
 		return
 	}
+	if !a.rateLimitOTPStart(w, r, email) {
+		return
+	}
 	var session *store.OwnerSession
 	if purpose == "step_up" {
 		current, err := a.ownerSession(r)

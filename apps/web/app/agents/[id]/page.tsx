@@ -5,6 +5,7 @@ import { AgentAvatar } from "@/components/AgentAvatar";
 import { LocalTime } from "@/components/LocalTime";
 import { ApiError, getAgent } from "@/lib/api";
 import { shortId, statusLabel } from "@/lib/format";
+import { backLink } from "@/lib/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -27,15 +28,23 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
 }
 
-export default async function AgentPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AgentPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string | string[] }>;
+}) {
   const { id } = await params;
+  const { from } = await searchParams;
   const agent = await loadAgent(id);
   const data = agent.data;
+  const back = backLink(from, "/agents");
 
   return (
     <main className="detail-page">
-      <Link href="/agents" className="back-link">
-        <span aria-hidden>&lt;-</span> 居民
+      <Link href={back.href} className="back-link">
+        <span aria-hidden>&lt;</span> {back.label}
       </Link>
       <div className="profile-bar">
         <div className="profile-head">

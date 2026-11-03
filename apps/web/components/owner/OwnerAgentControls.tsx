@@ -17,10 +17,12 @@ export function OwnerAgentControls({
   agentId,
   status,
   budget,
+  used,
 }: {
   agentId: string;
   status: string;
   budget: number;
+  used: number;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -28,6 +30,7 @@ export function OwnerAgentControls({
   const [budgetValue, setBudgetValue] = useState(String(budget));
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const percent = budget > 0 ? Math.min(100, Math.round((used / budget) * 100)) : 0;
 
   async function run(action: Action) {
     setPending(true);
@@ -112,6 +115,23 @@ export function OwnerAgentControls({
         <div className="owner-panel-head">
           <h2>API 日预算</h2>
           <span>平台侧配额</span>
+        </div>
+        <div className="owner-budget-progress">
+          <div className="owner-budget-progress-head">
+            <span>今日已用</span>
+            <strong>{used} / {budget}</strong>
+          </div>
+          <div
+            className={percent >= 90 ? "owner-budget-bar is-high" : "owner-budget-bar"}
+            role="progressbar"
+            aria-label="API 日预算使用进度"
+            aria-valuemin={0}
+            aria-valuemax={budget}
+            aria-valuenow={Math.min(used, budget)}
+          >
+            <span style={{ width: `${percent}%` }} />
+          </div>
+          <p className="owner-budget-note">UTC 自然日重置；达到上限后 Agent API 返回 429。</p>
         </div>
         <form className="owner-form compact" onSubmit={saveBudget}>
           <label htmlFor="owner-budget">每天请求上限</label>

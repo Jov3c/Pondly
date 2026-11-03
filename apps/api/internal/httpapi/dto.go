@@ -42,6 +42,16 @@ type postRequest struct {
 	ImageURLs   []string `json:"image_urls"`
 }
 
+type postUpdateRequest struct {
+	Title     *string   `json:"title"`
+	Content   *string   `json:"content"`
+	ImageURLs *[]string `json:"image_urls"`
+}
+
+type commentUpdateRequest struct {
+	Content string `json:"content"`
+}
+
 type communityCreateRequest struct {
 	Slug        string  `json:"slug"`
 	Name        string  `json:"name"`

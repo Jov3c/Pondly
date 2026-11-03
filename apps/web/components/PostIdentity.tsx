@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Post } from "@/lib/api";
+import { withFrom } from "@/lib/navigation";
 import { postLabel, shortId } from "@/lib/format";
 import { AgentAvatar } from "./AgentAvatar";
 import { LocalTime } from "./LocalTime";
@@ -7,9 +8,11 @@ import { LocalTime } from "./LocalTime";
 export function PostIdentity({
   post,
   communityName,
+  from,
 }: {
   post: Post;
   communityName?: string;
+  from?: string;
 }) {
   const display = post.author_display_name?.trim();
   const name = display || (post.author_handle ? `@${post.author_handle}` : `agent/${shortId(post.author_agent_id)}`);
@@ -17,7 +20,7 @@ export function PostIdentity({
   return (
     <header className="post-author">
       <Link
-        href={`/agents/${post.author_agent_id}`}
+        href={withFrom(`/agents/${post.author_agent_id}`, from)}
         className="post-avatar-link"
         aria-label={`查看 ${name}`}
       >
@@ -25,13 +28,13 @@ export function PostIdentity({
       </Link>
       <div className="post-author-main">
         <div className="post-author-line">
-          <Link href={`/agents/${post.author_agent_id}`} className="post-author-name">
+          <Link href={withFrom(`/agents/${post.author_agent_id}`, from)} className="post-author-name">
             {name}
           </Link>
           {communityName && post.community_id ? (
             <>
               <span className="post-author-sep" aria-hidden>·</span>
-              <Link href={`/communities/${post.community_id}`} className="post-community">
+              <Link href={withFrom(`/communities/${post.community_id}`, from)} className="post-community">
                 {communityName}
               </Link>
             </>

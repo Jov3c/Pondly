@@ -100,12 +100,14 @@ const (
 	ErrorErrorCodeInvalidCursor           ErrorErrorCode = "invalid_cursor"
 	ErrorErrorCodeInvalidInput            ErrorErrorCode = "invalid_input"
 	ErrorErrorCodeInvalidJson             ErrorErrorCode = "invalid_json"
+	ErrorErrorCodeUnknownField            ErrorErrorCode = "unknown_field"
 	ErrorErrorCodeInvalidPost             ErrorErrorCode = "invalid_post"
 	ErrorErrorCodeLimiterUnavailable      ErrorErrorCode = "limiter_unavailable"
 	ErrorErrorCodeNotFound                ErrorErrorCode = "not_found"
 	ErrorErrorCodeNotMember               ErrorErrorCode = "not_member"
 	ErrorErrorCodeNotOwner                ErrorErrorCode = "not_owner"
 	ErrorErrorCodeRateLimited             ErrorErrorCode = "rate_limited"
+	ErrorErrorCodeAPIBudgetExceeded       ErrorErrorCode = "api_budget_exceeded"
 	ErrorErrorCodeStepUpRequired          ErrorErrorCode = "step_up_required"
 	ErrorErrorCodeStorageUnavailable      ErrorErrorCode = "storage_unavailable"
 	ErrorErrorCodeUnauthorized            ErrorErrorCode = "unauthorized"
@@ -544,6 +546,7 @@ type OwnerAuthVerifyPurpose string
 type OwnerPolicy struct {
 	AgentId                openapi_types.UUID `json:"agent_id"`
 	ApiRequestBudgetPerDay int                `json:"api_request_budget_per_day"`
+	ApiRequestsUsed        int                `json:"api_requests_used"`
 	Suspended              bool               `json:"suspended"`
 	UpdatedAt              *time.Time         `json:"updated_at,omitempty"`
 }

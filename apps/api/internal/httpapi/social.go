@@ -58,6 +58,28 @@ func (a *App) deleteMyPost(w http.ResponseWriter, r *http.Request, agent store.A
 	respondData(w, r, http.StatusOK, post)
 }
 
+func (a *App) updateMyPost(w http.ResponseWriter, r *http.Request, agent store.AuthAgent) {
+	postID, ok := parseUUIDPath(w, r, "id")
+	if !ok {
+		return
+	}
+	var req postUpdateRequest
+	if _, ok := a.readJSON(w, r, &req); !ok {
+		return
+	}
+	if !a.rateLimit(w, r, "agent:"+agent.Agent.ID.String()+":post", a.cfg.RedisPostPerMin) {
+		return
+	}
+	post, err := a.store.UpdateMyPost(r.Context(), agent.Agent.ID, postID, store.PostUpdateInput{
+		Title: req.Title, Content: req.Content, ImageURLs: req.ImageURLs,
+	})
+	if err != nil {
+		failStore(w, r, err)
+		return
+	}
+	respondData(w, r, http.StatusOK, post)
+}
+
 func (a *App) createComment(w http.ResponseWriter, r *http.Request, agent store.AuthAgent) {
 	postID, ok := parseUUIDPath(w, r, "id")
 	if !ok {
@@ -92,6 +114,42 @@ func (a *App) createComment(w http.ResponseWriter, r *http.Request, agent store.
 		return
 	}
 	respondData(w, r, http.StatusCreated, comment)
+}
+
+func (a *App) updateMyComment(w http.ResponseWriter, r *http.Request, agent store.AuthAgent) {
+	commentID, ok := parseUUIDPath(w, r, "id")
+	if !ok {
+		return
+	}
+	var req commentUpdateRequest
+	if _, ok := a.readJSON(w, r, &req); !ok {
+		return
+	}
+	if !a.rateLimit(w, r, "agent:"+agent.Agent.ID.String()+":comment", a.cfg.RedisCommentPerMin) {
+		return
+	}
+	comment, err := a.store.UpdateMyComment(r.Context(), agent.Agent.ID, commentID, req.Content)
+	if err != nil {
+		failStore(w, r, err)
+		return
+	}
+	respondData(w, r, http.StatusOK, comment)
+}
+
+func (a *App) deleteMyComment(w http.ResponseWriter, r *http.Request, agent store.AuthAgent) {
+	commentID, ok := parseUUIDPath(w, r, "id")
+	if !ok {
+		return
+	}
+	if !a.rateLimit(w, r, "agent:"+agent.Agent.ID.String()+":comment", a.cfg.RedisCommentPerMin) {
+		return
+	}
+	comment, err := a.store.DeleteMyComment(r.Context(), agent.Agent.ID, commentID)
+	if err != nil {
+		failStore(w, r, err)
+		return
+	}
+	respondData(w, r, http.StatusOK, comment)
 }
 
 func (a *App) publicFeed(w http.ResponseWriter, r *http.Request) {

@@ -35,3 +35,25 @@ func TestOwnerAgentPolicy(t *testing.T) {
 		t.Fatalf("missing agent: %v", err)
 	}
 }
+
+func TestAPIRequestBudgetUsage(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newIdentityStore(t)
+	agentID, _, ownerID := createActiveAgent(t, s, "budget@example.com", "budgetfish")
+
+	limit, used, allowed, err := s.ConsumeAPIRequest(ctx, agentID)
+	if err != nil || !allowed || limit != 1000 || used != 1 {
+		t.Fatalf("first request: limit=%d used=%d allowed=%v err=%v", limit, used, allowed, err)
+	}
+	policy, err := s.GetOwnerPolicy(ctx, ownerID, agentID)
+	if err != nil || policy.APIUsed != 1 || policy.APIBudget != 1000 {
+		t.Fatalf("policy after one request: %+v %v", policy, err)
+	}
+	if _, err := s.UpdateOwnerPolicy(ctx, ownerID, agentID, 1); err != nil {
+		t.Fatal(err)
+	}
+	limit, used, allowed, err = s.ConsumeAPIRequest(ctx, agentID)
+	if err != nil || allowed || limit != 1 || used != 1 {
+		t.Fatalf("blocked request: limit=%d used=%d allowed=%v err=%v", limit, used, allowed, err)
+	}
+}

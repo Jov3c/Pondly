@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -79,6 +80,24 @@ func (a *App) withAgent(scope string, policy agentPolicy, action func(http.Respo
 			fail(w, r, http.StatusForbidden, "insufficient_scope")
 			return
 		}
+		limit, used, allowed, err := a.store.ConsumeAPIRequest(r.Context(), agent.Agent.ID)
+		if err != nil {
+			fail(w, r, http.StatusServiceUnavailable, "storage_unavailable")
+			return
+		}
+		w.Header().Set("X-API-Budget-Limit", strconv.Itoa(limit))
+		w.Header().Set("X-API-Budget-Used", strconv.Itoa(used))
+		if !allowed {
+			now := a.now().UTC()
+			next := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.UTC)
+			retry := int(next.Sub(now).Seconds())
+			if retry < 60 {
+				retry = 60
+			}
+			w.Header().Set("Retry-After", strconv.Itoa(retry))
+			fail(w, r, http.StatusTooManyRequests, "api_budget_exceeded")
+			return
+		}
 		action(w, r, agent)
 	}
 }
@@ -141,6 +160,10 @@ func (a *App) readJSON(w http.ResponseWriter, r *http.Request, dst any) ([]byte,
 	dec := json.NewDecoder(bytes.NewReader(body))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
+		if strings.Contains(err.Error(), "unknown field") {
+			fail(w, r, http.StatusBadRequest, "unknown_field")
+			return nil, false
+		}
 		fail(w, r, http.StatusBadRequest, "invalid_json")
 		return nil, false
 	}
@@ -169,17 +192,21 @@ func emptyRequestHash() [32]byte {
 }
 
 func (a *App) rateLimit(w http.ResponseWriter, r *http.Request, key string, capacity int) bool {
+	return a.rateLimitWindow(w, r, key, capacity, time.Minute, 60)
+}
+
+func (a *App) rateLimitWindow(w http.ResponseWriter, r *http.Request, key string, capacity int, window time.Duration, retryAfter int) bool {
 	if a.limiter == nil {
 		fail(w, r, http.StatusServiceUnavailable, "limiter_unavailable")
 		return false
 	}
-	ok, err := a.limiter.Allow(r.Context(), key, int64(capacity), float64(capacity)/60.0, 1)
+	ok, err := a.limiter.Allow(r.Context(), key, int64(capacity), float64(capacity)/window.Seconds(), 1)
 	if err != nil {
 		fail(w, r, http.StatusServiceUnavailable, "limiter_unavailable")
 		return false
 	}
 	if !ok {
-		w.Header().Set("Retry-After", "60")
+		w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
 		fail(w, r, http.StatusTooManyRequests, "rate_limited")
 		return false
 	}
@@ -193,6 +220,31 @@ func (a *App) rateLimitAuth(w http.ResponseWriter, r *http.Request, email string
 	}
 	emailHash := auth.HashToken("email:" + email)
 	return a.rateLimit(w, r, "auth:email:"+string(emailHash[:]), a.cfg.RedisAuthPerMin)
+}
+
+func (a *App) rateLimitOTPStart(w http.ResponseWriter, r *http.Request, email string) bool {
+	ip := clientIP(r)
+	emailHash := auth.HashToken("email:" + email)
+	if a.cfg.AuthStartCooldown > 0 {
+		seconds := int(a.cfg.AuthStartCooldown.Seconds())
+		if seconds < 1 {
+			seconds = 1
+		}
+		if !a.rateLimitWindow(w, r, "auth:email:cooldown:"+string(emailHash[:]), 1, a.cfg.AuthStartCooldown, seconds) {
+			return false
+		}
+	}
+	if a.cfg.RedisAuthDailyPerEmail > 0 {
+		if !a.rateLimitWindow(w, r, "auth:email:day:"+string(emailHash[:]), a.cfg.RedisAuthDailyPerEmail, 24*time.Hour, 3600) {
+			return false
+		}
+	}
+	if a.cfg.RedisAuthDailyPerIP > 0 {
+		if !a.rateLimitWindow(w, r, "auth:ip:day:"+ip, a.cfg.RedisAuthDailyPerIP, 24*time.Hour, 3600) {
+			return false
+		}
+	}
+	return true
 }
 
 func clientIP(r *http.Request) string {

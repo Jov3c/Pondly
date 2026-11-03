@@ -32,7 +32,7 @@ export default async function AgentsPage({
       {agents.status === "fulfilled" && agents.value.meta.next_cursor ? (
         <div className="pagination">
           <Link href={`/agents?cursor=${encodeURIComponent(agents.value.meta.next_cursor)}`}>
-            更多 <span aria-hidden>-&gt;</span>
+            更多 <span aria-hidden>&gt;</span>
           </Link>
         </div>
       ) : null}

@@ -29,14 +29,15 @@ type Config struct {
 
 	SMTP SMTPConfig
 
-	OwnerSessionTTL time.Duration
-	AdminSessionTTL time.Duration
-	AgentTokenTTL   time.Duration
-	OTPTTL          time.Duration
-	EnrollmentTTL   time.Duration
-	ClaimTTL        time.Duration
-	RecoveryTTL     time.Duration
-	SecretReplayTTL time.Duration
+	OwnerSessionTTL   time.Duration
+	AdminSessionTTL   time.Duration
+	AgentTokenTTL     time.Duration
+	OTPTTL            time.Duration
+	EnrollmentTTL     time.Duration
+	ClaimTTL          time.Duration
+	RecoveryTTL       time.Duration
+	SecretReplayTTL   time.Duration
+	AuthStartCooldown time.Duration
 
 	DailyPostLimit         int
 	DailyCommentLimit      int
@@ -46,10 +47,12 @@ type Config struct {
 	MaxCommunitiesPerAgent int
 	MaxEventFanout         int
 
-	RedisPostPerMin    int
-	RedisCommentPerMin int
-	RedisAuthPerMin    int
-	RedisWritePerMin   int
+	RedisPostPerMin        int
+	RedisCommentPerMin     int
+	RedisAuthPerMin        int
+	RedisAuthDailyPerIP    int
+	RedisAuthDailyPerEmail int
+	RedisWritePerMin       int
 
 	WorkerPollInterval time.Duration
 }
@@ -79,6 +82,7 @@ func FromEnvironment() (Config, error) {
 		ClaimTTL:               10 * time.Minute,
 		RecoveryTTL:            10 * time.Minute,
 		SecretReplayTTL:        10 * time.Minute,
+		AuthStartCooldown:      time.Minute,
 		DailyPostLimit:         8,
 		DailyCommentLimit:      30,
 		DailyFollowLimit:       30,
@@ -89,6 +93,8 @@ func FromEnvironment() (Config, error) {
 		RedisPostPerMin:        30,
 		RedisCommentPerMin:     60,
 		RedisAuthPerMin:        10,
+		RedisAuthDailyPerIP:    50,
+		RedisAuthDailyPerEmail: 5,
 		RedisWritePerMin:       120,
 		WorkerPollInterval:     2 * time.Second,
 	}
@@ -172,6 +178,9 @@ func FromEnvironment() (Config, error) {
 	if cfg.SecretReplayTTL, err = durationEnv("PONDLY_SECRET_REPLAY_TTL", cfg.SecretReplayTTL); err != nil {
 		return Config{}, err
 	}
+	if cfg.AuthStartCooldown, err = durationEnv("PONDLY_AUTH_START_COOLDOWN", cfg.AuthStartCooldown); err != nil {
+		return Config{}, err
+	}
 	if cfg.WorkerPollInterval, err = durationEnv("PONDLY_WORKER_POLL_INTERVAL", cfg.WorkerPollInterval); err != nil {
 		return Config{}, err
 	}
@@ -204,6 +213,12 @@ func FromEnvironment() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.RedisAuthPerMin, err = intEnv("PONDLY_REDIS_AUTH_PER_MIN", cfg.RedisAuthPerMin, 1, 100000); err != nil {
+		return Config{}, err
+	}
+	if cfg.RedisAuthDailyPerIP, err = intEnv("PONDLY_AUTH_DAILY_PER_IP", cfg.RedisAuthDailyPerIP, 1, 100000); err != nil {
+		return Config{}, err
+	}
+	if cfg.RedisAuthDailyPerEmail, err = intEnv("PONDLY_AUTH_DAILY_PER_EMAIL", cfg.RedisAuthDailyPerEmail, 1, 100000); err != nil {
 		return Config{}, err
 	}
 	if cfg.RedisWritePerMin, err = intEnv("PONDLY_REDIS_WRITE_PER_MIN", cfg.RedisWritePerMin, 1, 100000); err != nil {

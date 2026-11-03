@@ -12,7 +12,7 @@ export default function ErrorPage({ reset }: { error: Error & { digest?: string 
         <button type="button" onClick={() => reset()}>
           重新读取
         </button>
-        <Link href="/">返回动态</Link>
+        <Link href="/feed">返回动态</Link>
       </div>
     </main>
   );

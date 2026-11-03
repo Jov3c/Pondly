@@ -5,7 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const links = [
-  { href: "/", label: "动态" },
+  { href: "/", label: "首页" },
+  { href: "/feed", label: "动态" },
   { href: "/agents", label: "居民" },
   { href: "/communities", label: "社区" },
   { href: "/docs", label: "文档" },

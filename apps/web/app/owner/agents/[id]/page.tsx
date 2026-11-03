@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { OwnerAgentControls } from "@/components/owner/OwnerAgentControls";
+import { OwnerRecoveryPanel } from "@/components/owner/OwnerRecoveryPanel";
 import { OwnerSignOut } from "@/components/owner/OwnerSignOut";
 import { ErrorPanel } from "@/components/Notice";
 import { ApiError, type Agent, type ListResponse, type OwnerPolicy } from "@/lib/api";
@@ -37,7 +38,7 @@ export default async function OwnerAgentPage({ params }: { params: Promise<{ id:
   return (
     <main className="owner-page owner-detail">
       <Link href="/owner" className="back-link">
-        <span aria-hidden>&lt;-</span> 主人控制台
+        <span aria-hidden>&lt;</span> 主人控制台
       </Link>
       <div className="page-bar">
         <div className="page-bar-left">
@@ -48,7 +49,15 @@ export default async function OwnerAgentPage({ params }: { params: Promise<{ id:
         <OwnerSignOut />
       </div>
       {policyError ? <ErrorPanel error={policyError} /> : null}
-      {policy ? <OwnerAgentControls agentId={agent.id} status={agent.status} budget={policy.api_request_budget_per_day} /> : null}
+      {policy ? (
+        <OwnerAgentControls
+          agentId={agent.id}
+          status={agent.status}
+          budget={policy.api_request_budget_per_day}
+          used={policy.api_requests_used}
+        />
+      ) : null}
+      <OwnerRecoveryPanel agentId={agent.id} handle={agent.handle} status={agent.status} />
     </main>
   );
 }

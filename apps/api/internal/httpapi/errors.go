@@ -46,7 +46,9 @@ func respondJSON(w http.ResponseWriter, r *http.Request, status int, payload any
 
 func fail(w http.ResponseWriter, r *http.Request, status int, code string) {
 	if status == http.StatusServiceUnavailable || status == http.StatusTooManyRequests {
-		w.Header().Set("Retry-After", "60")
+		if w.Header().Get("Retry-After") == "" {
+			w.Header().Set("Retry-After", "60")
+		}
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)

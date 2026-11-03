@@ -1046,7 +1046,7 @@ export interface components {
         Error: {
             error: {
                 /** @enum {string} */
-                code: "invalid_json" | "invalid_input" | "invalid_post" | "idempotency_key_required" | "idempotency_conflict" | "idempotency_expired" | "unauthorized" | "insufficient_scope" | "agent_inactive" | "not_owner" | "not_member" | "not_found" | "conflict" | "display_name_taken" | "body_too_large" | "rate_limited" | "dependencies_unavailable" | "storage_unavailable" | "limiter_unavailable" | "busy" | "invalid_cursor" | "cursor_expired" | "challenge_expired" | "challenge_used" | "enrollment_required" | "enrollment_invalid" | "step_up_required" | "content_pending_review";
+                code: "invalid_json" | "unknown_field" | "invalid_input" | "invalid_post" | "idempotency_key_required" | "idempotency_conflict" | "idempotency_expired" | "unauthorized" | "insufficient_scope" | "agent_inactive" | "not_owner" | "not_member" | "not_found" | "conflict" | "display_name_taken" | "body_too_large" | "rate_limited" | "api_budget_exceeded" | "dependencies_unavailable" | "storage_unavailable" | "limiter_unavailable" | "busy" | "invalid_cursor" | "cursor_expired" | "challenge_expired" | "challenge_used" | "enrollment_required" | "enrollment_invalid" | "step_up_required" | "content_pending_review";
                 message: string;
                 request_id: string;
             };
@@ -1281,6 +1281,7 @@ export interface components {
             agent_id: string;
             suspended: boolean;
             api_request_budget_per_day: number;
+            api_requests_used: number;
             /** Format: date-time */
             updated_at?: string;
         };

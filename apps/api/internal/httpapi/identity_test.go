@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -18,9 +19,10 @@ import (
 )
 
 type captureMailer struct {
-	mu   sync.Mutex
-	code string
-	to   string
+	mu    sync.Mutex
+	code  string
+	to    string
+	sends int
 }
 
 func (m *captureMailer) SendOTP(_ context.Context, to, code string) error {
@@ -28,6 +30,7 @@ func (m *captureMailer) SendOTP(_ context.Context, to, code string) error {
 	defer m.mu.Unlock()
 	m.to = to
 	m.code = code
+	m.sends++
 	return nil
 }
 
@@ -37,7 +40,18 @@ func (m *captureMailer) last() (string, string) {
 	return m.to, m.code
 }
 
+func (m *captureMailer) sent() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.sends
+}
+
 func newIdentityApp(t *testing.T) (http.Handler, *captureMailer, *store.Store, *time.Time) {
+	t.Helper()
+	return newIdentityAppWithConfig(t, nil)
+}
+
+func newIdentityAppWithConfig(t *testing.T, mutate func(*platform.Config)) (http.Handler, *captureMailer, *store.Store, *time.Time) {
 	t.Helper()
 	ctx := context.Background()
 	pool, url := testutil.StartPostgres(t)
@@ -65,6 +79,9 @@ func newIdentityApp(t *testing.T) (http.Handler, *captureMailer, *store.Store, *
 		RedisPostPerMin: 1000, RedisCommentPerMin: 1000,
 		CursorKey:    bytes.Repeat([]byte{5}, 32),
 		CookieSecure: false,
+	}
+	if mutate != nil {
+		mutate(&cfg)
 	}
 	h := New(cfg, Dependencies{Store: db, Limiter: limiter, Mailer: mailer, Now: nowFn})
 	return h, mailer, db, &now
@@ -138,6 +155,21 @@ func TestReadJSONRejectsInvalidUTF8(t *testing.T) {
 	}
 	if rec.Code != http.StatusBadRequest || !bytes.Contains(rec.Body.Bytes(), []byte("invalid_json")) {
 		t.Fatalf("invalid UTF-8 admin response: %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestReadJSONRejectsUnknownFieldWithSpecificCode(t *testing.T) {
+	app := &App{bodyMax: 1024}
+	var dst struct {
+		Bio *string `json:"bio"`
+	}
+	req := httptest.NewRequest("PATCH", "/api/v1/agent/me", bytes.NewBufferString(`{"framework_label":"x"}`))
+	rec := httptest.NewRecorder()
+	if _, ok := app.readJSON(rec, req, &dst); ok {
+		t.Fatal("unknown field was accepted")
+	}
+	if rec.Code != http.StatusBadRequest || !bytes.Contains(rec.Body.Bytes(), []byte(`"code":"unknown_field"`)) {
+		t.Fatalf("unknown field response: %d %s", rec.Code, rec.Body)
 	}
 }
 
@@ -342,5 +374,83 @@ func TestIdentityHTTPFlow(t *testing.T) {
 	resp = callAPI(t, h, "POST", "/api/v1/agent/posts", map[string]string{"content": "x"}, ownerCookie, "", "", "owner-post-0000001")
 	if resp.Code != 401 {
 		t.Fatalf("owner session write: %d %s", resp.Code, resp.Body)
+	}
+}
+
+func TestOwnerAuthStartCooldownDoesNotBlockVerification(t *testing.T) {
+	h, mailer, _, _ := newIdentityAppWithConfig(t, func(cfg *platform.Config) {
+		cfg.AuthStartCooldown = time.Minute
+		cfg.RedisAuthDailyPerIP = 50
+		cfg.RedisAuthDailyPerEmail = 5
+	})
+	email := "cooldown@example.com"
+
+	resp := callAPI(t, h, "POST", "/api/v1/owner/auth/start", map[string]string{"email": email}, "", "", "", "")
+	if resp.Code != 200 {
+		t.Fatalf("first start: %d %s", resp.Code, resp.Body)
+	}
+	resp = callAPI(t, h, "POST", "/api/v1/owner/auth/start", map[string]string{"email": email}, "", "", "", "")
+	if resp.Code != 429 || !bytes.Contains(resp.Body, []byte("rate_limited")) {
+		t.Fatalf("cooldown start: %d %s", resp.Code, resp.Body)
+	}
+	if got := mailer.sent(); got != 1 {
+		t.Fatalf("mail sends after cooldown: %d", got)
+	}
+
+	_, code := mailer.last()
+	resp = callAPI(t, h, "POST", "/api/v1/owner/auth/verify", map[string]string{"email": email, "code": code}, "", "", "", "")
+	if resp.Code != 200 {
+		t.Fatalf("verify blocked by send cooldown: %d %s", resp.Code, resp.Body)
+	}
+}
+
+func TestOwnerAuthStartDailyEmailLimit(t *testing.T) {
+	h, mailer, _, _ := newIdentityAppWithConfig(t, func(cfg *platform.Config) {
+		cfg.AuthStartCooldown = time.Nanosecond
+		cfg.RedisAuthDailyPerIP = 50
+		cfg.RedisAuthDailyPerEmail = 2
+	})
+	email := "daily-email@example.com"
+
+	for i := 0; i < 2; i++ {
+		resp := callAPI(t, h, "POST", "/api/v1/owner/auth/start", map[string]string{"email": email}, "", "", "", "")
+		if resp.Code != 200 {
+			t.Fatalf("send %d: %d %s", i+1, resp.Code, resp.Body)
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	resp := callAPI(t, h, "POST", "/api/v1/owner/auth/start", map[string]string{"email": email}, "", "", "", "")
+	if resp.Code != 429 || !bytes.Contains(resp.Body, []byte("rate_limited")) {
+		t.Fatalf("daily email limit: %d %s", resp.Code, resp.Body)
+	}
+	if got := mailer.sent(); got != 2 {
+		t.Fatalf("mail sends after daily email limit: %d", got)
+	}
+}
+
+func TestOwnerAuthStartDailyIPLimit(t *testing.T) {
+	h, mailer, _, _ := newIdentityAppWithConfig(t, func(cfg *platform.Config) {
+		cfg.AuthStartCooldown = time.Nanosecond
+		cfg.RedisAuthDailyPerIP = 2
+		cfg.RedisAuthDailyPerEmail = 50
+	})
+
+	for i := 0; i < 2; i++ {
+		email := fmt.Sprintf("daily-ip-%d@example.com", i)
+		resp := callAPI(t, h, "POST", "/api/v1/owner/auth/start", map[string]string{"email": email}, "", "", "", "")
+		if resp.Code != 200 {
+			t.Fatalf("send %d: %d %s", i+1, resp.Code, resp.Body)
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	resp := callAPI(t, h, "POST", "/api/v1/owner/auth/start", map[string]string{"email": "daily-ip-2@example.com"}, "", "", "", "")
+	if resp.Code != 429 || !bytes.Contains(resp.Body, []byte("rate_limited")) {
+		t.Fatalf("daily IP limit: %d %s", resp.Code, resp.Body)
+	}
+	if got := resp.Header.Get("Retry-After"); got != "3600" {
+		t.Fatalf("daily IP retry-after = %q", got)
+	}
+	if got := mailer.sent(); got != 2 {
+		t.Fatalf("mail sends after daily IP limit: %d", got)
 	}
 }

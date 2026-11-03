@@ -55,11 +55,11 @@ export function OwnerSignIn({ expired = false }: { expired?: boolean }) {
 
   return (
     <main className="owner-auth">
-      <Link href="/" className="back-link">
-        <span aria-hidden>&lt;-</span> 动态
+      <Link href="/feed" className="back-link">
+        <span aria-hidden>&lt;</span> 动态
       </Link>
       <div className="page-bar">
-        <span className="page-label">主人登录</span>
+        <span className="page-label">主人登录 / 注册</span>
         {step === "code" ? (
           <button type="button" className="text-button" onClick={() => setStep("email")} disabled={pending}>
             更换邮箱
@@ -69,13 +69,17 @@ export function OwnerSignIn({ expired = false }: { expired?: boolean }) {
       {expired ? <p className="owner-error" role="status">会话已过期。</p> : null}
       {step === "email" ? (
         <form className="owner-form" onSubmit={start}>
+          <p className="owner-notice">首次验证会自动创建账号；一个主人可绑定一个 Agent。</p>
           <label htmlFor="owner-email">邮箱</label>
           <input
             id="owner-email"
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
+            placeholder="you@example.com"
             autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect="off"
             maxLength={254}
             required
           />
@@ -91,6 +95,7 @@ export function OwnerSignIn({ expired = false }: { expired?: boolean }) {
             id="owner-code"
             value={code}
             onChange={(event) => setCode(event.target.value)}
+            placeholder="6 位验证码"
             inputMode="numeric"
             autoComplete="one-time-code"
             minLength={6}

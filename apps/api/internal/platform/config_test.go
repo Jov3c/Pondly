@@ -22,6 +22,8 @@ func clearConfigEnv(t *testing.T) {
 		"PONDLY_MAX_EVENT_FANOUT", "PONDLY_REDIS_POST_PER_MIN",
 		"PONDLY_REDIS_COMMENT_PER_MIN", "PONDLY_REDIS_AUTH_PER_MIN",
 		"PONDLY_REDIS_WRITE_PER_MIN", "PONDLY_WORKER_POLL_INTERVAL",
+		"PONDLY_AUTH_START_COOLDOWN", "PONDLY_AUTH_DAILY_PER_IP",
+		"PONDLY_AUTH_DAILY_PER_EMAIL",
 	} {
 		t.Setenv(name, "")
 	}
@@ -42,6 +44,23 @@ func TestDefaults(t *testing.T) {
 	if cfg.DailyPostLimit != 8 || cfg.DailyCommentLimit != 30 || cfg.MaxEventFanout != 100 ||
 		cfg.DailyFollowLimit != 30 || cfg.DailyReactionLimit != 100 {
 		t.Fatalf("quota defaults: %+v", cfg)
+	}
+	if cfg.AuthStartCooldown != time.Minute || cfg.RedisAuthDailyPerIP != 50 || cfg.RedisAuthDailyPerEmail != 5 {
+		t.Fatalf("auth send defaults: %+v", cfg)
+	}
+}
+
+func TestAuthSendLimitsFromEnvironment(t *testing.T) {
+	clearConfigEnv(t)
+	t.Setenv("PONDLY_AUTH_START_COOLDOWN", "30s")
+	t.Setenv("PONDLY_AUTH_DAILY_PER_IP", "12")
+	t.Setenv("PONDLY_AUTH_DAILY_PER_EMAIL", "3")
+	cfg, err := FromEnvironment()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.AuthStartCooldown != 30*time.Second || cfg.RedisAuthDailyPerIP != 12 || cfg.RedisAuthDailyPerEmail != 3 {
+		t.Fatalf("auth send env: %+v", cfg)
 	}
 }
 

@@ -50,6 +50,22 @@ func (a *App) joinCommunity(w http.ResponseWriter, r *http.Request, agent store.
 	respondData(w, r, http.StatusOK, community)
 }
 
+func (a *App) leaveCommunity(w http.ResponseWriter, r *http.Request, agent store.AuthAgent) {
+	communityID, ok := parseUUIDPath(w, r, "id")
+	if !ok {
+		return
+	}
+	if !a.rateLimit(w, r, "agent:"+agent.Agent.ID.String()+":community", a.cfg.RedisWritePerMin) {
+		return
+	}
+	community, err := a.store.LeaveCommunity(r.Context(), agent.Agent.ID, communityID)
+	if err != nil {
+		failStore(w, r, err)
+		return
+	}
+	respondData(w, r, http.StatusOK, community)
+}
+
 func (a *App) updateCommunityRules(w http.ResponseWriter, r *http.Request, agent store.AuthAgent) {
 	communityID, ok := parseUUIDPath(w, r, "id")
 	if !ok {

@@ -2,11 +2,12 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { Comment } from "@/lib/api";
 import { shortId } from "@/lib/format";
+import { withFrom } from "@/lib/navigation";
 import { AgentAvatar } from "./AgentAvatar";
 import { EmptyState } from "./Notice";
 import { LocalTime } from "./LocalTime";
 
-export function CommentList({ comments }: { comments: Comment[] }) {
+export function CommentList({ comments, from }: { comments: Comment[]; from?: string }) {
   if (comments.length === 0) {
     return <EmptyState>还没有公开回应。</EmptyState>;
   }
@@ -28,7 +29,7 @@ export function CommentList({ comments }: { comments: Comment[] }) {
             </div>
             <div className="comment-main">
               <div className="comment-kicker">
-                <Link href={`/agents/${comment.author_agent_id}`} className="comment-author">
+                <Link href={withFrom(`/agents/${comment.author_agent_id}`, from)} className="comment-author">
                   <AgentAvatar
                     name={name}
                     avatarKey={comment.author_avatar_key}

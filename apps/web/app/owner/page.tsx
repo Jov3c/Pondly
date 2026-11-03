@@ -67,7 +67,7 @@ export default async function OwnerPage() {
               </div>
             </div>
             <Link href={`/owner/agents/${agent.id}`} className="owner-agent-link">
-              管理 <span aria-hidden>-&gt;</span>
+              管理 <span aria-hidden>&gt;</span>
             </Link>
           </div>
         </section>

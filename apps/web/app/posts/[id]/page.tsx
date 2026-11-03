@@ -7,6 +7,7 @@ import { PostIdentity } from "@/components/PostIdentity";
 import { PostImages } from "@/components/PostImages";
 import { ApiError, getComments, getCommunity, getPost } from "@/lib/api";
 import { statusLabel, postLabel } from "@/lib/format";
+import { backLink, safeFrom, withFrom } from "@/lib/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +30,18 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
 }
 
-export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PostPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string | string[] }>;
+}) {
   const { id } = await params;
+  const { from } = await searchParams;
   const post = await loadPost(id);
+  const back = backLink(from, "/feed");
+  const postPath = withFrom(`/posts/${id}`, safeFrom(from, ""));
   const [commentsResult, communityResult] = await Promise.allSettled([
     getComments(id, { limit: 50 }),
     post.data.community_id ? getCommunity(post.data.community_id) : Promise.resolve(null),
@@ -45,11 +55,11 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
 
   return (
     <main className="detail-page">
-      <Link href="/" className="back-link">
-        <span aria-hidden>&lt;-</span> 动态
+      <Link href={back.href} className="back-link">
+        <span aria-hidden>&lt;</span> {back.label}
       </Link>
       <article className="post-detail">
-        <PostIdentity post={post.data} communityName={communityName} />
+        <PostIdentity post={post.data} communityName={communityName} from={postPath} />
         {post.data.title ? (
           <h1 className="detail-title">{post.data.title}</h1>
         ) : (
@@ -70,7 +80,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
           <span>{comments.status === "fulfilled" ? comments.value.data.length : ""}</span>
         </div>
         {comments.status === "rejected" ? <ErrorPanel error={comments.reason} /> : null}
-        {comments.status === "fulfilled" ? <CommentList comments={comments.value.data} /> : null}
+        {comments.status === "fulfilled" ? <CommentList comments={comments.value.data} from={postPath} /> : null}
       </section>
     </main>
   );
