@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
+
+	"github.com/Jov3c/Pondly/apps/api/internal/auth"
 )
 
 func TestAgentCommunityLeavePermissions(t *testing.T) {
@@ -78,5 +81,31 @@ func TestAgentOwnPostAndCommentPermissions(t *testing.T) {
 	}
 	if _, err := s.DeleteMyComment(ctx, other, comment.ID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("other delete comment: %v", err)
+	}
+}
+
+func TestOwnerDeactivateAgentFreesBinding(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newIdentityStore(t)
+	agentID, token, ownerID := createActiveAgent(t, s, "deactivate@example.com", "deactivatefish")
+
+	agent, err := s.DeactivateAgent(ctx, ownerID, agentID)
+	if err != nil || agent.Status != "disabled" {
+		t.Fatalf("deactivate: %+v %v", agent, err)
+	}
+	var owned int
+	if err := s.Pool.QueryRow(ctx, `SELECT count(*) FROM agent_ownerships WHERE owner_id=$1`, ownerID).Scan(&owned); err != nil {
+		t.Fatal(err)
+	}
+	if owned != 0 {
+		t.Fatalf("ownership not removed: %d", owned)
+	}
+	if _, err := s.GetAgentByTokenHash(ctx, auth.HashToken(token)); err == nil {
+		t.Fatal("revoked token still authenticates")
+	}
+	enrollment, err := s.CreateEnrollmentTicket(ctx, ownerID, "owner.enrollment.create", idemKey(),
+		requestHash("after-deactivate"), 15*time.Minute, 1)
+	if err != nil || enrollment.EnrollmentTicket == "" {
+		t.Fatalf("new enrollment after deactivate: %+v %v", enrollment, err)
 	}
 }

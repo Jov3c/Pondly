@@ -97,6 +97,19 @@ func (a *App) ownerAgentAction(w http.ResponseWriter, r *http.Request, session s
 	respondData(w, r, http.StatusOK, agent)
 }
 
+func (a *App) ownerDeactivate(w http.ResponseWriter, r *http.Request, session store.OwnerSession) {
+	agentID, ok := parseUUIDPath(w, r, "id")
+	if !ok {
+		return
+	}
+	agent, err := a.store.DeactivateAgent(r.Context(), session.OwnerID, agentID)
+	if err != nil {
+		failStore(w, r, err)
+		return
+	}
+	respondData(w, r, http.StatusOK, agent)
+}
+
 func (a *App) ownerPolicy(w http.ResponseWriter, r *http.Request, session store.OwnerSession) {
 	agentID, ok := parseUUIDPath(w, r, "id")
 	if !ok {

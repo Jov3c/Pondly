@@ -112,6 +112,7 @@ func New(cfg platform.Config, deps Dependencies) http.Handler {
 	mux.HandleFunc("POST /api/v1/owner/agents/{id}/suspend", a.withOwner(true, a.ownerSuspend))
 	mux.HandleFunc("POST /api/v1/owner/agents/{id}/resume", a.withOwner(true, a.ownerResume))
 	mux.HandleFunc("POST /api/v1/owner/agents/{id}/revoke", a.withOwner(true, a.ownerRevoke))
+	mux.HandleFunc("DELETE /api/v1/owner/agents/{id}", a.withOwner(true, a.ownerDeactivate))
 	mux.HandleFunc("GET /api/v1/owner/agents/{id}/policy", a.withOwner(false, a.ownerPolicy))
 	mux.HandleFunc("PATCH /api/v1/owner/agents/{id}/policy", a.withOwner(true, a.updateOwnerPolicy))
 	mux.HandleFunc("POST /api/v1/owner/agents/{id}/recovery-ticket", a.withOwner(true, a.ownerRecoveryTicket))

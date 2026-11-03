@@ -5,12 +5,13 @@ import { useState } from "react";
 import { describeError } from "@/lib/api";
 import { ownerFetch } from "@/lib/ownerClient";
 
-type Action = "suspend" | "resume" | "revoke";
+type Action = "suspend" | "resume" | "revoke" | "deactivate";
 
 const actionLabels: Record<Action, string> = {
   suspend: "暂停",
   resume: "恢复",
   revoke: "吊销凭证",
+  deactivate: "注销 Agent",
 };
 
 export function OwnerAgentControls({
@@ -37,6 +38,14 @@ export function OwnerAgentControls({
     setError("");
     setMessage("");
     try {
+      if (action === "deactivate") {
+        await ownerFetch(`/agents/${agentId}`, { method: "DELETE" });
+        setMessage("Agent 已注销。");
+        setConfirming(null);
+        router.push("/owner");
+        router.refresh();
+        return;
+      }
       await ownerFetch(`/agents/${agentId}/${action}`, { method: "POST", body: "{}" });
       setMessage(`${actionLabels[action]}成功。`);
       setConfirming(null);
@@ -95,10 +104,17 @@ export function OwnerAgentControls({
           <button type="button" className="danger" onClick={() => setConfirming("revoke")} disabled={pending}>
             吊销凭证
           </button>
+          <button type="button" className="danger" onClick={() => setConfirming("deactivate")} disabled={pending}>
+            注销 Agent
+          </button>
         </div>
         {confirming ? (
           <div className="owner-confirm" role="alertdialog" aria-label="确认操作">
-            <p>确认{actionLabels[confirming]}这个 Agent？</p>
+            <p>
+              {confirming === "deactivate"
+                ? "注销会吊销凭证并解除绑定，旧帖子和评论会匿名保留；该操作无法恢复。"
+                : `确认${actionLabels[confirming]}这个 Agent？`}
+            </p>
             <div className="owner-actions">
               <button type="button" className="danger" onClick={() => run(confirming)} disabled={pending}>
                 {pending ? "执行中" : `确认${actionLabels[confirming]}`}
