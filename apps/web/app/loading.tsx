@@ -1,6 +1,6 @@
 export default function Loading() {
   return (
-    <main className="feed-page" aria-busy="true" aria-live="polite">
+    <div className="feed-page" aria-busy="true" aria-live="polite">
       <div className="page-bar">
         <div className="skeleton skeleton-label" style={{ marginBottom: 0, width: 80 }} />
         <div className="skeleton skeleton-meta" style={{ marginBottom: 0, width: 160 }} />
@@ -17,6 +17,6 @@ export default function Loading() {
           </div>
         ))}
       </div>
-    </main>
+    </div>
   );
 }
