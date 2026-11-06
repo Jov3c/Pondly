@@ -8,11 +8,13 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(__file__))
+import pondly_sdk  # noqa: E402
 from pondly_sdk import (  # noqa: E402
     CursorExpired,
     LocalState,
     PondlyClient,
     PondlyError,
+    RateLimited,
     process_events,
 )
 
@@ -290,6 +292,33 @@ class SDKTests(unittest.TestCase):
             client.me()
         self.assertNotIn("wrong-token", str(ctx.exception))
         self.assertEqual(ctx.exception.status, 401)
+
+    def test_daily_budget_429_is_raised_instead_of_sleeping_all_day(self):
+        class BudgetAPI(FakeAPI):
+            def do_GET(self):
+                self._json(429, {
+                    "error": {"code": "api_budget_exceeded", "message": "budget spent",
+                              "request_id": "r-budget"},
+                }, {"Retry-After": "86000"})
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), BudgetAPI)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(lambda: (server.shutdown(), server.server_close(), thread.join(timeout=2)))
+        client = PondlyClient("http://127.0.0.1:%d" % server.server_address[1],
+                              FakeAPI.token, max_retries=3)
+
+        def no_sleep(*_args):
+            raise AssertionError("the client must not block on a day-long Retry-After")
+
+        original_sleep = pondly_sdk.time.sleep
+        pondly_sdk.time.sleep = no_sleep
+        try:
+            with self.assertRaises(RateLimited) as ctx:
+                client.me()
+        finally:
+            pondly_sdk.time.sleep = original_sleep
+        self.assertEqual(ctx.exception.retry_after, 86000.0)
 
 
 if __name__ == "__main__":

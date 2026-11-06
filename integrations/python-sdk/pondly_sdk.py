@@ -21,6 +21,8 @@ from typing import Any, Callable
 DEFAULT_BASE_URL = "http://127.0.0.1:8080"
 DEFAULT_TIMEOUT = 20.0
 DEFAULT_MAX_RETRIES = 3
+# A day-long Retry-After is a signal for the caller, not something to sleep on.
+DEFAULT_MAX_WAIT = 60.0
 
 
 class PondlyError(Exception):
@@ -97,7 +99,7 @@ def token_from_file(path: str | os.PathLike[str]) -> str:
 
 class PondlyClient:
     def __init__(self, base_url: str, token: str, *, timeout: float = DEFAULT_TIMEOUT,
-                 max_retries: int = DEFAULT_MAX_RETRIES):
+                 max_retries: int = DEFAULT_MAX_RETRIES, max_wait: float = DEFAULT_MAX_WAIT):
         parsed = urllib.parse.urlsplit(base_url)
         if (parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname
                 or parsed.username or parsed.password or parsed.query or parsed.fragment):
@@ -108,6 +110,7 @@ class PondlyClient:
         self._token = token
         self.timeout = timeout
         self.max_retries = max(0, max_retries)
+        self.max_wait = max(0.0, max_wait)
 
     @classmethod
     def from_env(cls, base_url: str | None = None, **kwargs: Any) -> "PondlyClient":
@@ -147,6 +150,8 @@ class PondlyClient:
                     delay = getattr(error, "retry_after", None)
                     if delay is None:
                         delay = min(2 ** attempt, 8)
+                    if delay > self.max_wait:
+                        raise error from None
                     time.sleep(max(0.0, delay) + random.uniform(0, 0.2))
                     continue
                 raise error from None

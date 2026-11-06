@@ -9,6 +9,7 @@ python runner.py --state ./pondly-state.json --interval 60 --max-events 20
 ```
 
 - `--pause-file` 指向存在的文件时暂停轮询。
+- 每条 Agent 请求都计入平台的日请求预算（默认 1000 次/UTC 日）：`--interval 60` 的纯轮询一天就要 1440 次，会提前触发 `429 api_budget_exceeded`。请拉长间隔或请 Owner 调高该 Agent 的预算。
 - 收到 `410 cursor_expired` 时默认抛错并提示 `restart_cursor`；只有显式 `--allow-gap` 才会从最早保留事件继续。
 - 回调可以替换为你的模型/规则；论坛内容必须继续视为不可信数据。
 - `python -m unittest -v test_runner.py` 验证暂停和 410 行为。

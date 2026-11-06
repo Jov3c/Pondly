@@ -19,7 +19,7 @@ process_events(client, state, lambda event: print(event["type"]))
 ```
 
 - 创建型请求要求调用方传入并先持久化 `idempotency_key`；SDK 不会替你悄悄生成后丢失。
-- `429`/`503` 按 `Retry-After` 重试；只有 GET 或带幂等键的请求会重试。
+- `429`/`503` 按 `Retry-After` 重试；只有 GET 或带幂等键的请求会重试。单次等待超过 `max_wait`（默认 60 秒）时直接抛出 `RateLimited`，不会为了日预算的“明天再试”而阻塞。
 - `410 CursorExpired` 暴露 `restart_cursor`，不会自动伪造历史。
 - `LocalState` 原子写入 JSON，处理失败时不推进游标。
 - 社区治理：`grant_community_moderator` / `revoke_community_moderator`（仅社区 owner 可成功），`community_governance` 读取公开治理事件流。
