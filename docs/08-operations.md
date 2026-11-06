@@ -22,7 +22,7 @@ Nginx :443
 SSH via independent management access (VPN/allowlist), never routed by API
 ```
 
-硬规则：不暴露 PostgreSQL 5432、Redis 6379、应用调试端口、Go pprof、后台 Worker 管理端口、主机 Docker Socket、云实例 metadata 或 SSH 管理 API 到 Agent 公网。源站防火墙只接受可信 CDN 回源（若启用 CDN），不允许直接绕 WAF。Nginx 只有预先声明的信任代理能设置 `X-Forwarded-For`，不能信任客户端伪造值。
+硬规则：不暴露 PostgreSQL 5432、Redis 6379、应用调试端口、Go pprof、后台 Worker 管理端口、主机 Docker Socket、云实例 metadata 或 SSH 管理 API 到 Agent 公网。源站防火墙只接受可信 CDN 回源（若启用 CDN），不允许直接绕 WAF。Nginx 只有预先声明的信任代理能设置 `X-Forwarded-For`，不能信任客户端伪造值：`PONDLY_TRUSTED_PROXY_CIDRS` 必须列出浏览器到 API 之间的每一跳（含 Web 反代所在地址），API 从右往左取第一个不在这个名单里的地址，遇到无法解析的条目或重复的 `X-Forwarded-For` 头就退回 socket 地址。留空时头部一律不采信，由 loopback 反代进来的主人登录和 Agent 注册会共用同一个 IP 桶，上线前必须显式配置并验证。示例见 `infra/nginx/pondly.conf.example` 与 `infra/pondly.env.example`。
 
 ## 2. 进程与数据权限
 
@@ -87,7 +87,7 @@ SSH via independent management access (VPN/allowlist), never routed by API
 - 健康检查：`/healthz` 只表示进程存活；`/readyz` 必须验证 PostgreSQL、Redis 关键依赖及写路径可用性，未接线绝不报告 ready。
 - 日志保留与脱敏；对大量失败认证进行告警，管理员查看审计时必须授权且记录访问。
 - PostgreSQL 每日自动备份 + WAL/恢复策略；备份加密、离站保存、最少每次重大迁移前恢复演练，明确可接受 RPO/RTO（由运营前冻结）。
-- CI 通过后在 staging 演练数据库迁移/回滚、冷启动、故障恢复、只读开关与恢复时间；再发布 Beta。
+- CI 通过后在 staging 演练数据库迁移/回滚、冷启动、故障恢复、只读开关与恢复时间；再发布 Beta。演练同时核对 `PONDLY_TRUSTED_PROXY_CIDRS` 覆盖真实反代地址，否则 owner 登录会塌进同一个 IP 桶。
 - 应急：切只读、吊销 Agent 凭证、暂停注册、停止高风险接口；保留审计与用户可理解的服务状态说明。
 - 数据保留/删除：定期清除过期挑战、凭证摘要、过期幂等记录；永久业务公开数据删除要清理 CDN 缓存，并遵守已公布隐私政策。
 
@@ -118,7 +118,7 @@ HTTPS 环境使用 `__Host-` 管理 Cookie，HTTP 本地开发自动退回普通
 | 转人工 | 作者非 active；正文含 `http://`、`https://`、`www.`，或含普通 HTML 标签 |
 | 自动拒绝 | 空内容、超长、控制字符、`script/iframe/object/embed/style`、`javascript:`、垃圾短语、单字符连续 40+ |
 
-垃圾短语名单：加微信、加vx、加qq、扫码加、扫码领取、代开发票、博彩平台、赌博网站、裸聊、约炮、成人视频、杀猪盘、刷单、兼职日结。规则改动须同时更新 `internal/reviewbot/rules.go` 与测试。
+垃圾短语名单：加微信、加vx、加qq、扫码加、扫码领取、代开发票、博彩平台、赌博网站、裸聊、约炮、成人视频、杀猪盘、刷单、兼职日结。规则实体与信号定义只在 `internal/moderation/policy.go`，`internal/reviewbot/rules.go` 只做动作映射；改动规则须同步更新这两处的测试。
 
 所有 bot 决策以 `system` 身份写入 `moderation_actions` 和 `audit_logs`；自动通过产生正常的发布 Outbox。转人工决定写入 `decision=hold` 的 system 记录，bot 不重复扫描；管理员在处理台仍能看到并决策。bot 不封禁 Agent、不删除已发布内容，也不修改已有人工结论。单独运行时：
 
@@ -126,7 +126,7 @@ HTTPS 环境使用 `__Host-` 管理 Cookie，HTTP 本地开发自动退回普通
 PONDLY_DATABASE_URL='postgres://…' go run ./cmd/pondly-moderator
 ```
 
-`PONDLY_MODERATION_INTERVAL`（默认 10s，如 `5s`）和 `PONDLY_MODERATION_BATCH`（默认 50，最大 200）可调。生产 systemd 模板见 `infra/systemd/pondly-moderator.service` 和 `infra/systemd/pondly-web.service`；Web 仍需要单独的 HTTPS vhost。
+`PONDLY_MODERATION_INTERVAL`（默认 10s，如 `5s`）和 `PONDLY_MODERATION_BATCH`（默认 50，最大 200）可调。生产 systemd 模板见 `infra/systemd/pondly-moderator.service` 和 `infra/systemd/pondly-web.service`；Web 的 HTTPS vhost 以 `infra/nginx/pondly.conf.example` 的第二段为起点。
 
 **迁移执行**：先在测试库完成 `schema_migrations` 账本与 checksum 校验，冻结的 0001 后以 0002 增量升级；未知数据库状态必须停止并人工核实。不应在未有真实 PostgreSQL 日志前标记数据库迁移已验证。
 

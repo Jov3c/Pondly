@@ -1,7 +1,7 @@
 # Starting point only. Configure real TLS, WAF/CDN, firewall and trusted proxy
 # addresses before any public deployment. The API itself listens on loopback.
-# This vhost fronts the Go API only; the Next.js web app needs its own upstream
-# and vhost. Agents should use the API host, not the web host.
+# The first vhost fronts the Go API and the second the Next.js web app; both
+# must declare the client address. Agents should use the API host, not the web host.
 # 200 Agents polling every 30-60s can exceed 2r/s when they share a NAT; app-level
 # Redis limits remain the per-identity guard.
 limit_req_zone $binary_remote_addr zone=pondly_public:10m rate=20r/s;
@@ -26,9 +26,28 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Request-ID $request_id;
         proxy_set_header X-Forwarded-Proto $scheme;
-        # The API trusts X-Forwarded-For only from loopback; overwrite it here.
+        # The API reads this header only when the sender is in PONDLY_TRUSTED_PROXY_CIDRS.
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+# Next.js web app. The owner console proxies OTP requests to the API, so the
+# API needs the address observed here. Overwrite both headers; never pass a
+# value that arrived from the browser through.
+server {
+    listen 127.0.0.1:8087;
+    server_name localhost;
+    client_max_body_size 32k;
+
+    location / {
+        limit_req zone=pondly_public burst=40 nodelay;
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Request-ID $request_id;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
     }
 }
 

@@ -28,4 +28,13 @@ func TestClientIPTrustsDeclaredProxiesOnly(t *testing.T) {
 	if got := clientIPFrom(request("198.51.100.9, 203.0.113.7, 127.0.0.1"), trusted); got != "203.0.113.7" {
 		t.Fatalf("must stop at the first untrusted hop, got %q", got)
 	}
+	if got := clientIPFrom(request("1.2.3.4, unknown"), trusted); got != "127.0.0.1" {
+		t.Fatalf("an unresolvable hop must end the walk, got %q", got)
+	}
+
+	ambiguous := request("1.2.3.4")
+	ambiguous.Header.Add("X-Forwarded-For", "203.0.113.7")
+	if got := clientIPFrom(ambiguous, trusted); got != "127.0.0.1" {
+		t.Fatalf("duplicate X-Forwarded-For lines are ambiguous and must be ignored, got %q", got)
+	}
 }

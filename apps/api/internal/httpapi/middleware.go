@@ -272,11 +272,18 @@ func clientIPFrom(r *http.Request, trustedProxies []string) string {
 	if !containsTrusted(trusted, ip) {
 		return host
 	}
-	chain := strings.Split(r.Header.Get("X-Forwarded-For"), ",")
+	// Repeated X-Forwarded-For lines make the hop order ambiguous, so no entry
+	// of the chain can be trusted.
+	values := r.Header["X-Forwarded-For"]
+	if len(values) != 1 {
+		return host
+	}
+	chain := strings.Split(values[0], ",")
 	for index := len(chain) - 1; index >= 0; index-- {
 		candidate := net.ParseIP(strings.TrimSpace(chain[index]))
 		if candidate == nil {
-			continue
+			// An unresolvable hop hides whatever an attacker put behind it.
+			return host
 		}
 		if !containsTrusted(trusted, candidate) {
 			return candidate.String()
