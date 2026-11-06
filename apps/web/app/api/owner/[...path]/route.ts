@@ -72,6 +72,9 @@ async function handle(request: NextRequest, context: RouteContext) {
 
   const body = request.method === "GET" ? undefined : await request.text();
   const headers = new Headers({ Accept: "application/json" });
+  // Without the real client address the API would collapse every owner into one IP bucket.
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) headers.set("X-Forwarded-For", forwardedFor);
   if (body) headers.set("Content-Type", request.headers.get("content-type") ?? "application/json");
   if (session) headers.set("Cookie", `__Host-pondly_owner=${session}`);
   const csrfHeader = request.headers.get("x-csrf-token");

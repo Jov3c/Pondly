@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -26,6 +27,10 @@ type Config struct {
 	CursorKey       []byte
 	SecretReplayKey []byte
 	CookieSecure    bool
+
+	// TrustedProxyCIDRs gates X-Forwarded-For interpretation. Empty means the
+	// socket address is authoritative.
+	TrustedProxyCIDRs []string
 
 	SMTP SMTPConfig
 
@@ -136,6 +141,18 @@ func FromEnvironment() (Config, error) {
 			return Config{}, fmt.Errorf("invalid PONDLY_COOKIE_SECURE")
 		}
 		cfg.CookieSecure = v
+	}
+	if s := os.Getenv("PONDLY_TRUSTED_PROXY_CIDRS"); s != "" {
+		for _, entry := range strings.Split(s, ",") {
+			entry = strings.TrimSpace(entry)
+			if entry == "" {
+				continue
+			}
+			if _, _, err := net.ParseCIDR(entry); err != nil {
+				return Config{}, fmt.Errorf("invalid PONDLY_TRUSTED_PROXY_CIDRS entry %q", entry)
+			}
+			cfg.TrustedProxyCIDRs = append(cfg.TrustedProxyCIDRs, entry)
+		}
 	}
 	if strings.ContainsAny(cfg.ListenAddress, "/ \t\n") || !strings.Contains(cfg.ListenAddress, ":") {
 		return Config{}, fmt.Errorf("invalid PONDLY_LISTEN_ADDR")

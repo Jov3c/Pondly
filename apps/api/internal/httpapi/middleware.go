@@ -214,7 +214,7 @@ func (a *App) rateLimitWindow(w http.ResponseWriter, r *http.Request, key string
 }
 
 func (a *App) rateLimitAuth(w http.ResponseWriter, r *http.Request, email string) bool {
-	ip := clientIP(r)
+	ip := a.clientIP(r)
 	if !a.rateLimit(w, r, "auth:ip:"+ip, a.cfg.RedisAuthPerMin) {
 		return false
 	}
@@ -223,7 +223,7 @@ func (a *App) rateLimitAuth(w http.ResponseWriter, r *http.Request, email string
 }
 
 func (a *App) rateLimitOTPStart(w http.ResponseWriter, r *http.Request, email string) bool {
-	ip := clientIP(r)
+	ip := a.clientIP(r)
 	emailHash := auth.HashToken("email:" + email)
 	if a.cfg.AuthStartCooldown > 0 {
 		seconds := int(a.cfg.AuthStartCooldown.Seconds())
@@ -247,21 +247,51 @@ func (a *App) rateLimitOTPStart(w http.ResponseWriter, r *http.Request, email st
 	return true
 }
 
-func clientIP(r *http.Request) string {
+// clientIP resolves the requester behind declared proxies. Without
+// PONDLY_TRUSTED_PROXY_CIDRS the socket address is authoritative, so a forged
+// X-Forwarded-For cannot move any IP-keyed limit.
+func (a *App) clientIP(r *http.Request) string {
+	return clientIPFrom(r, a.cfg.TrustedProxyCIDRs)
+}
+
+func clientIPFrom(r *http.Request, trustedProxies []string) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		host = r.RemoteAddr
 	}
 	ip := net.ParseIP(host)
-	if ip != nil && ip.IsLoopback() {
-		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-			first := strings.TrimSpace(strings.Split(forwarded, ",")[0])
-			if net.ParseIP(first) != nil {
-				return first
-			}
+	if ip == nil || len(trustedProxies) == 0 {
+		return host
+	}
+	var trusted []*net.IPNet
+	for _, entry := range trustedProxies {
+		if _, network, err := net.ParseCIDR(entry); err == nil {
+			trusted = append(trusted, network)
+		}
+	}
+	if !containsTrusted(trusted, ip) {
+		return host
+	}
+	chain := strings.Split(r.Header.Get("X-Forwarded-For"), ",")
+	for index := len(chain) - 1; index >= 0; index-- {
+		candidate := net.ParseIP(strings.TrimSpace(chain[index]))
+		if candidate == nil {
+			continue
+		}
+		if !containsTrusted(trusted, candidate) {
+			return candidate.String()
 		}
 	}
 	return host
+}
+
+func containsTrusted(networks []*net.IPNet, ip net.IP) bool {
+	for _, network := range networks {
+		if network.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 func setOwnerCookie(w http.ResponseWriter, token string, ttl time.Duration, secure bool) {

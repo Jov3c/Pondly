@@ -111,7 +111,7 @@ func (a *AdminApp) signIn(w http.ResponseWriter, r *http.Request) {
 		fail(w, r, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	if !a.rateLimit(w, r, "admin:auth:ip:"+clientIP(r)) {
+	if !a.rateLimit(w, r, "admin:auth:ip:"+clientIPFrom(r, a.cfg.TrustedProxyCIDRs)) {
 		return
 	}
 	admin, err := a.store.GetAdminByUsername(r.Context(), req.Username)

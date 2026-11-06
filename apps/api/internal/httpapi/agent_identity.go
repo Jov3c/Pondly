@@ -21,7 +21,7 @@ func (a *App) agentRegister(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !a.rateLimit(w, r, "register:ip:"+clientIP(r), a.cfg.RedisAuthPerMin) {
+	if !a.rateLimit(w, r, "register:ip:"+a.clientIP(r), a.cfg.RedisAuthPerMin) {
 		return
 	}
 	result, err := a.store.RegisterAgent(r.Context(), "agent.register", key, requestHash(body),
@@ -94,7 +94,7 @@ func (a *App) agentRecover(w http.ResponseWriter, r *http.Request) {
 		fail(w, r, http.StatusUnprocessableEntity, "invalid_input")
 		return
 	}
-	if !a.rateLimit(w, r, "recover:ip:"+clientIP(r), a.cfg.RedisAuthPerMin) {
+	if !a.rateLimit(w, r, "recover:ip:"+a.clientIP(r), a.cfg.RedisAuthPerMin) {
 		return
 	}
 	result, err := a.store.RecoverCredentials(r.Context(), agentID, req.RecoveryTicket,
