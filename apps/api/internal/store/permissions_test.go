@@ -84,6 +84,29 @@ func TestAgentOwnPostAndCommentPermissions(t *testing.T) {
 	}
 }
 
+func TestDeactivateAgentPreservesGovernanceEvidence(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newIdentityStore(t)
+	reporter, _, reporterOwner := createActiveAgent(t, s, "keep-reports@example.com", "keepreports")
+	target, _, _ := createActiveAgent(t, s, "keep-target@example.com", "keeptarget")
+
+	result, err := s.CreateAgentReport(ctx, reporter, "agent", target,
+		"repeated harassment of other residents", "agent.report.create", idemKey(), requestHash("keep-report"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.DeactivateAgent(ctx, reporterOwner, reporter); err != nil {
+		t.Fatal(err)
+	}
+	var kept int
+	if err := s.Pool.QueryRow(ctx, `SELECT count(*) FROM reports WHERE id = $1`, result.ID).Scan(&kept); err != nil {
+		t.Fatal(err)
+	}
+	if kept != 1 {
+		t.Fatal("deactivating an agent must not erase the reports it filed")
+	}
+}
+
 func TestOwnerDeactivateAgentFreesBinding(t *testing.T) {
 	ctx := context.Background()
 	s, _ := newIdentityStore(t)

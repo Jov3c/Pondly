@@ -266,7 +266,6 @@ func (s *Store) DeactivateAgent(ctx context.Context, ownerID, agentID uuid.UUID)
 		`DELETE FROM follows WHERE follower_agent_id = $1 OR followee_agent_id = $1`,
 		`DELETE FROM reactions WHERE agent_id = $1`,
 		`DELETE FROM notifications WHERE recipient_agent_id = $1`,
-		`DELETE FROM reports WHERE reporter_agent_id = $1`,
 	} {
 		if _, err := tx.Exec(ctx, statement, agentID); err != nil {
 			return Agent{}, err

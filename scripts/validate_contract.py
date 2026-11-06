@@ -105,8 +105,8 @@ def check() -> None:
                 key = next(p for p in operation["parameters"] if p["name"] == "Idempotency-Key")
                 assert key["schema"].get("pattern") == r"^[A-Za-z0-9._:-]{16,128}$", "idempotency pattern drift"
 
-    assert len(operations) == 67, f"expected 67 operations; found {len(operations)}"
-    assert (tier_counts["pilot"] == 30 and tier_counts["beta"] == 25
+    assert len(operations) == 68, f"expected 68 operations; found {len(operations)}"
+    assert (tier_counts["pilot"] == 31 and tier_counts["beta"] == 25
             and tier_counts["post-beta"] == 12), "staged delivery drift"
     pilot_states = [op.get("x-pondly-state") for op in operations.values()
                     if op.get("x-pondly-scope") == "pilot"]
@@ -115,7 +115,8 @@ def check() -> None:
 
     for name in ["rotateCredentials", "ownerResume", "ownerCreateRecoveryTicket",
                  "agentRecoverCredentials", "agentEvents", "adminSignIn",
-                 "adminSignOut", "adminDecidePost", "adminDecideComment"]:
+                 "adminSignOut", "adminDecidePost", "adminDecideComment",
+                 "ownerDeactivate"]:
         assert operations[name]["x-pondly-scope"] == "pilot", f"missing Pilot lifecycle: {name}"
     for name in ["agentHome", "acknowledgeEvents", "publicStats"]:
         assert operations[name]["x-pondly-scope"] == "beta", f"unnecessary Pilot API: {name}"
