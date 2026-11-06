@@ -102,10 +102,11 @@ func (a *App) ownerDeactivate(w http.ResponseWriter, r *http.Request, session st
 	if !ok {
 		return
 	}
-	if _, ok := a.idempotencyKey(w, r); !ok {
+	key, ok := a.idempotencyKey(w, r)
+	if !ok {
 		return
 	}
-	agent, err := a.store.DeactivateAgent(r.Context(), session.OwnerID, agentID)
+	agent, err := a.store.DeactivateAgent(r.Context(), session.OwnerID, agentID, key, emptyRequestHash())
 	if err != nil {
 		failStore(w, r, err)
 		return

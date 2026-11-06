@@ -211,75 +211,73 @@ func (s *Store) DeleteMyComment(ctx context.Context, agentID, commentID uuid.UUI
 	return comment, nil
 }
 
-func (s *Store) DeactivateAgent(ctx context.Context, ownerID, agentID uuid.UUID) (Agent, error) {
-	tx, err := s.Pool.Begin(ctx)
-	if err != nil {
-		return Agent{}, err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
+func (s *Store) DeactivateAgent(ctx context.Context, ownerID, agentID uuid.UUID, key string, requestHash [32]byte) (Agent, error) {
+	_, body, err := s.Idempotent(ctx, ownerID, "owner.agent.deactivate", key, requestHash, false,
+		func(tx pgx.Tx) (int, any, error) {
+			var status string
+			err := tx.QueryRow(ctx, `SELECT a.status FROM agents a
+				JOIN agent_ownerships o ON o.agent_id = a.id
+				WHERE a.id = $1 AND o.owner_id = $2 FOR UPDATE OF a`, agentID, ownerID).Scan(&status)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return 0, nil, ErrNotOwner
+			}
+			if err != nil {
+				return 0, nil, err
+			}
+			var ownsCommunity bool
+			if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM communities
+				WHERE creator_agent_id = $1 AND status = 'active')`, agentID).Scan(&ownsCommunity); err != nil {
+				return 0, nil, err
+			}
+			if ownsCommunity {
+				return 0, nil, ErrConflict
+			}
 
-	var status string
-	err = tx.QueryRow(ctx, `SELECT a.status FROM agents a
-		JOIN agent_ownerships o ON o.agent_id = a.id
-		WHERE a.id = $1 AND o.owner_id = $2 FOR UPDATE OF a`, agentID, ownerID).Scan(&status)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return Agent{}, ErrNotOwner
-	}
+			now := s.now()
+			short := strings.ReplaceAll(agentID.String(), "-", "")[:8]
+			disabledName := "已注销-" + short
+			if _, err := tx.Exec(ctx, `UPDATE agent_credentials SET revoked_at = $2
+				WHERE agent_id = $1 AND revoked_at IS NULL`, agentID, now); err != nil {
+				return 0, nil, err
+			}
+			if _, err := tx.Exec(ctx, `UPDATE agents SET status = 'disabled', updated_at = $2 WHERE id = $1`, agentID, now); err != nil {
+				return 0, nil, err
+			}
+			if _, err := tx.Exec(ctx, `UPDATE agent_profiles
+				SET display_name = $2, bio = NULL, model_label = NULL, framework_label = NULL,
+				    avatar_key = NULL, updated_at = $3
+				WHERE agent_id = $1`, agentID, disabledName, now); err != nil {
+				return 0, nil, err
+			}
+			for _, statement := range []string{
+				`DELETE FROM agent_ownerships WHERE agent_id = $1`,
+				`DELETE FROM community_members WHERE agent_id = $1`,
+				`DELETE FROM owner_agent_policies WHERE agent_id = $1`,
+				`DELETE FROM pilot_publish_allowlist WHERE agent_id = $1`,
+				`DELETE FROM agent_inboxes WHERE agent_id = $1`,
+				`DELETE FROM agent_recovery_tickets WHERE agent_id = $1`,
+				`DELETE FROM agent_api_request_counters WHERE agent_id = $1`,
+				`DELETE FROM daily_write_counters WHERE agent_id = $1`,
+				`DELETE FROM claim_challenges WHERE agent_id = $1`,
+				`DELETE FROM follows WHERE follower_agent_id = $1 OR followee_agent_id = $1`,
+				`DELETE FROM reactions WHERE agent_id = $1`,
+				`DELETE FROM notifications WHERE recipient_agent_id = $1`,
+			} {
+				if _, err := tx.Exec(ctx, statement, agentID); err != nil {
+					return 0, nil, err
+				}
+			}
+			if err := writeAudit(ctx, tx, "owner", &ownerID, "owner.agent.deactivate", "agent", &agentID, "", nil); err != nil {
+				return 0, nil, err
+			}
+			agent, err := getAgentTx(ctx, tx, agentID)
+			if err != nil {
+				return 0, nil, err
+			}
+			return 200, agent, nil
+		})
 	if err != nil {
 		return Agent{}, err
 	}
-	var ownsCommunity bool
-	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM communities
-		WHERE creator_agent_id = $1 AND status = 'active')`, agentID).Scan(&ownsCommunity); err != nil {
-		return Agent{}, err
-	}
-	if ownsCommunity {
-		return Agent{}, ErrConflict
-	}
-
-	now := s.now()
-	short := strings.ReplaceAll(agentID.String(), "-", "")[:8]
-	displayName := "已注销-" + short
-	if _, err := tx.Exec(ctx, `UPDATE agent_credentials SET revoked_at = $2
-		WHERE agent_id = $1 AND revoked_at IS NULL`, agentID, now); err != nil {
-		return Agent{}, err
-	}
-	if _, err := tx.Exec(ctx, `UPDATE agents SET status = 'disabled', updated_at = $2 WHERE id = $1`, agentID, now); err != nil {
-		return Agent{}, err
-	}
-	if _, err := tx.Exec(ctx, `UPDATE agent_profiles
-		SET display_name = $2, bio = NULL, model_label = NULL, framework_label = NULL,
-		    avatar_key = NULL, updated_at = $3
-		WHERE agent_id = $1`, agentID, displayName, now); err != nil {
-		return Agent{}, err
-	}
-	for _, statement := range []string{
-		`DELETE FROM agent_ownerships WHERE agent_id = $1`,
-		`DELETE FROM community_members WHERE agent_id = $1`,
-		`DELETE FROM owner_agent_policies WHERE agent_id = $1`,
-		`DELETE FROM pilot_publish_allowlist WHERE agent_id = $1`,
-		`DELETE FROM agent_inboxes WHERE agent_id = $1`,
-		`DELETE FROM agent_recovery_tickets WHERE agent_id = $1`,
-		`DELETE FROM agent_api_request_counters WHERE agent_id = $1`,
-		`DELETE FROM daily_write_counters WHERE agent_id = $1`,
-		`DELETE FROM claim_challenges WHERE agent_id = $1`,
-		`DELETE FROM follows WHERE follower_agent_id = $1 OR followee_agent_id = $1`,
-		`DELETE FROM reactions WHERE agent_id = $1`,
-		`DELETE FROM notifications WHERE recipient_agent_id = $1`,
-	} {
-		if _, err := tx.Exec(ctx, statement, agentID); err != nil {
-			return Agent{}, err
-		}
-	}
-	if err := writeAudit(ctx, tx, "owner", &ownerID, "owner.agent.deactivate", "agent", &agentID, "", nil); err != nil {
-		return Agent{}, err
-	}
-	agent, err := getAgentTx(ctx, tx, agentID)
-	if err != nil {
-		return Agent{}, err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return Agent{}, err
-	}
-	return agent, nil
+	return decodeData[Agent](body)
 }

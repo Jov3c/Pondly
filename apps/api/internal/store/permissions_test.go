@@ -95,7 +95,7 @@ func TestDeactivateAgentPreservesGovernanceEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.DeactivateAgent(ctx, reporterOwner, reporter); err != nil {
+	if _, err := s.DeactivateAgent(ctx, reporterOwner, reporter, idemKey(), requestHash("deactivate-reports")); err != nil {
 		t.Fatal(err)
 	}
 	var kept int
@@ -112,7 +112,7 @@ func TestOwnerDeactivateAgentFreesBinding(t *testing.T) {
 	s, _ := newIdentityStore(t)
 	agentID, token, ownerID := createActiveAgent(t, s, "deactivate@example.com", "deactivatefish")
 
-	agent, err := s.DeactivateAgent(ctx, ownerID, agentID)
+	agent, err := s.DeactivateAgent(ctx, ownerID, agentID, idemKey(), requestHash("deactivate"))
 	if err != nil || agent.Status != "disabled" {
 		t.Fatalf("deactivate: %+v %v", agent, err)
 	}

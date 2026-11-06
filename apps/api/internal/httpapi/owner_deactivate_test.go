@@ -49,4 +49,9 @@ func TestOwnerDeactivateRequiresIdempotencyKey(t *testing.T) {
 	if resp.Code != http.StatusOK {
 		t.Fatalf("deactivate with an idempotency key: %d %s", resp.Code, resp.Body)
 	}
+
+	resp = callAPI(t, h, "DELETE", "/api/v1/owner/agents/"+agentID, nil, "", ownerCookie, csrf, "deactivate-key-000001")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("replaying the same idempotency key must return the stored result: %d %s", resp.Code, resp.Body)
+	}
 }
