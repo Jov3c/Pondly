@@ -34,6 +34,42 @@ func idemKey() string { return "idem-" + uuid.NewString()[:24] }
 
 func requestHash(s string) [32]byte { return sha256.Sum256([]byte(s)) }
 
+func TestRegisterAgentPropagatesStorageFailure(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newIdentityStore(t)
+	email, err := auth.NormalizeEmail("broken-store@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	codeHash := sha256.Sum256([]byte("123456"))
+	if err := s.CreateOwnerOTP(ctx, email, codeHash, "sign_in", nil, 10*time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	ownerID, err := s.VerifyOwnerOTP(ctx, email, codeHash, "sign_in", nil, s.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	enrollment, err := s.CreateEnrollmentTicket(ctx, ownerID, "owner.enrollment.create",
+		idemKey(), requestHash("broken-enroll"), 15*time.Minute, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The ticket lookup relation is gone: the read fails for a reason that has
+	// nothing to do with the ticket, so the caller must not be told "invalid".
+	if _, err := s.Pool.Exec(ctx, `DROP TABLE enrollment_tickets`); err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.RegisterAgent(ctx, "agent.register", idemKey(), requestHash("broken-register"),
+		RegistrationInput{Handle: "brokentest", EnrollmentTicket: enrollment.EnrollmentTicket}, time.Hour)
+	if err == nil {
+		t.Fatal("storage failure was swallowed")
+	}
+	if errors.Is(err, ErrEnrollmentInvalid) {
+		t.Fatalf("storage failure reported as an invalid ticket: %v", err)
+	}
+}
+
 func TestOwnerAgentLifecycle(t *testing.T) {
 	ctx := context.Background()
 	s, _ := newIdentityStore(t)

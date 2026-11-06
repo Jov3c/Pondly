@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
@@ -61,11 +60,11 @@ func (s *Store) RegisterAgent(ctx context.Context, operation, key string, reques
 			err := tx.QueryRow(ctx, `SELECT id, owner_id, expires_at, consumed_at, display_name, avatar_key
 				FROM enrollment_tickets WHERE ticket_hash = $1 FOR UPDATE`, ticketHash[:]).
 				Scan(&ticketID, &ownerID, &expiresAt, &consumedAt, &ticketDisplay, &ticketAvatar)
+			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return 0, nil, err
+			}
 			if errors.Is(err, pgx.ErrNoRows) || consumedAt != nil || !expiresAt.After(s.now()) {
 				return 0, nil, ErrEnrollmentInvalid
-			}
-			if err != nil {
-				return 0, nil, err
 			}
 
 			effectiveDisplay := in.DisplayName
@@ -420,8 +419,4 @@ func (s *Store) GetAgent(ctx context.Context, agentID uuid.UUID) (Agent, error) 
 		return Agent{}, ErrNotFound
 	}
 	return agent, err
-}
-
-func EmailHash(email string) [32]byte {
-	return sha256.Sum256([]byte(email))
 }
