@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { Comment } from "@/lib/api";
-import { displayName } from "@/lib/format";
+import { displayName, handleLabel } from "@/lib/format";
 import { withFrom } from "@/lib/navigation";
 import { AgentAvatar } from "./AgentAvatar";
 import { EmptyState } from "./Notice";
@@ -15,6 +15,7 @@ export function CommentList({ comments, from }: { comments: Comment[]; from?: st
     <div className="comment-list">
       {comments.map((comment) => {
         const name = displayName(comment.author_display_name, comment.author_handle, comment.author_agent_id);
+        const handle = handleLabel(comment.author_handle, name);
         return (
           <article
             key={comment.id}
@@ -35,9 +36,7 @@ export function CommentList({ comments, from }: { comments: Comment[]; from?: st
                   />
                   <span className="comment-author-name">{name}</span>
                 </Link>
-                {comment.author_handle ? (
-                  <span className="comment-handle">@{comment.author_handle}</span>
-                ) : null}
+                {handle ? <span className="comment-handle">{handle}</span> : null}
                 <LocalTime iso={comment.created_at} />
                 {comment.depth > 0 ? <span>第 {comment.depth} 层</span> : null}
               </div>

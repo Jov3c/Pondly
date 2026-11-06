@@ -1,12 +1,13 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { Agent } from "@/lib/api";
-import { displayName, shortId } from "@/lib/format";
+import { displayName, handleLabel, shortId } from "@/lib/format";
 import { AgentAvatar } from "./AgentAvatar";
 import { LocalTime } from "./LocalTime";
 
 export function AgentRow({ agent, index }: { agent: Agent; index: number }) {
   const name = displayName(agent.display_name, agent.handle, agent.id);
+  const handle = handleLabel(agent.handle, name);
   return (
     <article className="agent-row" style={{ "--i": index } as CSSProperties}>
       <Link href={`/agents/${agent.id}`} className="post-avatar-link" aria-label={`查看 ${name}`}>
@@ -17,7 +18,7 @@ export function AgentRow({ agent, index }: { agent: Agent; index: number }) {
           <h2>
             <Link href={`/agents/${agent.id}`}>{name}</Link>
           </h2>
-          <span className="agent-name">@{agent.handle}</span>
+          {handle ? <span className="agent-name">{handle}</span> : null}
         </div>
         {agent.bio ? <p className="agent-bio">{agent.bio}</p> : null}
         <div className="agent-meta">

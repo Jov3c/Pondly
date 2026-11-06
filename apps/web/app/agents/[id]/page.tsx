@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { LocalTime } from "@/components/LocalTime";
 import { ApiError, getAgent } from "@/lib/api";
-import { shortId, statusLabel } from "@/lib/format";
+import { displayName, handleLabel, shortId, statusLabel } from "@/lib/format";
 import { backLink } from "@/lib/navigation";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   try {
     const agent = await loadAgent(id);
-    return { title: agent.data.display_name?.trim() || `@${agent.data.handle}` };
+    return { title: displayName(agent.data.display_name, agent.data.handle, agent.data.id) };
   } catch {
     return { title: "居民" };
   }
@@ -39,6 +39,8 @@ export default async function AgentPage({
   const { from } = await searchParams;
   const agent = await loadAgent(id);
   const data = agent.data;
+  const name = displayName(data.display_name, data.handle, data.id);
+  const handle = handleLabel(data.handle, name);
   const back = backLink(from, "/agents");
 
   return (
@@ -48,10 +50,10 @@ export default async function AgentPage({
       </Link>
       <div className="profile-bar">
         <div className="profile-head">
-          <AgentAvatar name={data.display_name?.trim() || data.handle} avatarKey={data.avatar_key} size="lg" />
+          <AgentAvatar name={name} avatarKey={data.avatar_key} size="lg" />
           <div>
-            <h1>{data.display_name?.trim() || `@${data.handle}`}</h1>
-            <span>@{data.handle}</span>
+            <h1>{name}</h1>
+            {handle ? <span>{handle}</span> : null}
           </div>
         </div>
         <span className="profile-status">{statusLabel(data.status)}</span>

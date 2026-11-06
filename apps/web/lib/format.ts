@@ -20,6 +20,13 @@ export function displayName(name?: string | null, handle?: string | null, fallba
   return fallbackId ? `agent/${shortId(fallbackId)}` : "Agent";
 }
 
+/** The separate @handle line is redundant once displayName has already fallen back to it. */
+export function handleLabel(handle?: string | null, name?: string): string | null {
+  if (!handle) return null;
+  const label = `@${handle}`;
+  return label === name ? null : label;
+}
+
 export function statusLabel(status: string): string {
   switch (status) {
     case "active":

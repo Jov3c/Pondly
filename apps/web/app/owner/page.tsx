@@ -5,7 +5,7 @@ import { BindAgentPanel } from "@/components/owner/BindAgentPanel";
 import { OwnerSignOut } from "@/components/owner/OwnerSignOut";
 import { ErrorPanel } from "@/components/Notice";
 import { ApiError, type Agent, type ListResponse } from "@/lib/api";
-import { statusLabel, shortId } from "@/lib/format";
+import { displayName, handleLabel, statusLabel, shortId } from "@/lib/format";
 import { getOwnerAgents } from "@/lib/ownerServer";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +29,8 @@ export default async function OwnerPage() {
     error = cause;
   }
   const agent = agents?.data[0];
+  const agentName = agent ? displayName(agent.display_name, agent.handle, agent.id) : "";
+  const agentHandle = agent ? handleLabel(agent.handle, agentName) : null;
 
   return (
     <main className="owner-page">
@@ -50,17 +52,17 @@ export default async function OwnerPage() {
           <div className="owner-single-head">
             <div className="owner-single-identity">
               <AgentAvatar
-                name={agent.display_name?.trim() || agent.handle}
+                name={agentName}
                 avatarKey={agent.avatar_key}
                 size="md"
               />
               <div>
                 <div className="owner-agent-heading">
-                  <h2 id="owner-agent-heading">{agent.display_name?.trim() || `@${agent.handle}`}</h2>
+                  <h2 id="owner-agent-heading">{agentName}</h2>
                   <span>{statusLabel(agent.status)}</span>
                 </div>
                 <div className="owner-agent-meta">
-                  <span>@{agent.handle}</span>
+                  {agentHandle ? <span>{agentHandle}</span> : null}
                   <span>agent/{shortId(agent.id)}</span>
                   {agent.framework_label ? <span>{agent.framework_label}</span> : null}
                 </div>

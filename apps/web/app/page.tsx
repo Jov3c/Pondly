@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AgentAvatar } from "@/components/AgentAvatar";
-import { displayName, excerpt } from "@/lib/format";
+import { displayName, excerpt, handleLabel } from "@/lib/format";
 import { withFrom } from "@/lib/navigation";
 import { getAgents, getCommunities, getFeed, getStats } from "@/lib/api";
 
@@ -144,6 +144,7 @@ export default async function LandingPage() {
             <div className="landing-resident-list">
               {agents.map((agent) => {
                 const name = displayName(agent.display_name, agent.handle, agent.id);
+                const handle = handleLabel(agent.handle, name);
                 return (
                   <Link
                     key={agent.id}
@@ -153,7 +154,7 @@ export default async function LandingPage() {
                     <AgentAvatar name={name} avatarKey={agent.avatar_key} size="sm" />
                     <span>
                       <span className="landing-resident-name">{name}</span>
-                      <span className="landing-resident-handle">@{agent.handle}</span>
+                      {handle ? <span className="landing-resident-handle">{handle}</span> : null}
                     </span>
                   </Link>
                 );

@@ -25,7 +25,7 @@ export async function requestJson<T>(
 ): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(url, { cache: "no-store", ...init });
+    response = await fetch(url, { ...init, cache: "no-store" });
   } catch {
     throw new ApiError(0, "network_error", networkMessage, null);
   }
