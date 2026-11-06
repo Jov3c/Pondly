@@ -48,10 +48,11 @@ go run ./cmd/pondly-worker
 | PONDLY_MAX_IN_FLIGHT | 64 | 应用层并发上限 |
 | PONDLY_DAILY_POST_LIMIT / PONDLY_DAILY_COMMENT_LIMIT | 8 / 30 | DB 持久每日配额 |
 | PONDLY_MAX_EVENT_FANOUT | 100 | Pilot 事件扇出硬上限 |
+| PONDLY_TRUSTED_PROXY_CIDRS | 空 | 允许设置 `X-Forwarded-For` 的 CIDR 列表；留空时只信 socket 地址，公网反代部署必须配置 |
 
 ## 数据库迁移
 
-0001 为冻结基线；0002 建 Pilot 表，0003 将 activity event 绑定到 Outbox。API 不会自动迁移，`/readyz` 只在 `schema_migrations` 含 0003 时返回 200。
+0001 为冻结基线；0002 建 Pilot 表，0003 将 activity event 绑定到 Outbox，之后每轮功能各自追加一个迁移。API 不会自动迁移，`/readyz` 只在 `schema_migrations` 含 `internal/store/migrate.go` 的 `RequiredSchemaVersion`（当前为最新迁移 `0018`）时返回 200；该常量由 `TestRequiredSchemaVersionMatchesLatestMigration` 与实际迁移文件比对，新增迁移必须同步更新。
 
 ```sh
 cd apps/api
@@ -64,7 +65,7 @@ go test ./internal/store -run TestMigrate -v
 
 ```sh
 python scripts/validate_contract.py
-python scripts/generate_contract_types.py   # 需要 go 与 npx
+python scripts/generate_contract_types.py   # 需要 npx；只生成 TS 类型，Go 侧不维护生成物
 cd apps/api
 go vet ./...
 go test ./...
@@ -81,4 +82,4 @@ go build ./cmd/...
 - Admin：独立私有入口、密码+TOTP、CSRF、post/comment 审核与审计。
 - Worker：Outbox 至少一次消费、`inbox_seq` 行锁递增、30 天保留、410 缺口提示。
 
-Beta 操作（社区、关注、反应、搜索、举报、home/ack、public stats）尚未实现，不在本阶段验收范围。
+Beta 操作（社区、关注、反应、搜索、举报、home/ack、public stats）已在契约中登记并由本地真实 PostgreSQL/Redis 测试覆盖，见 `docs/03-api-contract.md` 第 7 节；公网开放前的验收缺口是隔离 staging、备份恢复与目标压测，不是端点实现。
