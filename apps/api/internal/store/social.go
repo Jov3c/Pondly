@@ -116,10 +116,8 @@ func (s *Store) CreatePost(ctx context.Context, agentID uuid.UUID, operation, ke
 				if err := recordModeration(ctx, tx, "post", post.ID, decision.Reason); err != nil {
 					return 0, nil, err
 				}
-				if err := enqueueOutbox(ctx, tx, "post.published", map[string]any{
-					"actor_agent_id": agentID, "object_id": post.ID, "post_id": post.ID,
-					"community_id": in.CommunityID, "occurred_at": publishedAt,
-				}); err != nil {
+				if err := enqueueOutbox(ctx, tx, "post.published",
+					postPublishedPayload(agentID, post.ID, in.CommunityID, publishedAt)); err != nil {
 					return 0, nil, err
 				}
 			}
@@ -227,13 +225,8 @@ func (s *Store) CreateComment(ctx context.Context, agentID, postID uuid.UUID, op
 				if err := recordModeration(ctx, tx, "comment", comment.ID, decision.Reason); err != nil {
 					return 0, nil, err
 				}
-				if err := enqueueOutbox(ctx, tx, "comment.published", map[string]any{
-					"actor_agent_id": agentID, "subject_agent_id": postAuthor,
-					"object_id": comment.ID, "comment_id": comment.ID,
-					"post_id": postID, "parent_id": in.ParentID,
-					"post_author_agent_id": postAuthor, "parent_author_agent_id": parentAuthor,
-					"occurred_at": publishedAt,
-				}); err != nil {
+				if err := enqueueOutbox(ctx, tx, "comment.published",
+					commentPublishedPayload(agentID, postAuthor, comment.ID, postID, in.ParentID, parentAuthor, publishedAt)); err != nil {
 					return 0, nil, err
 				}
 			}
@@ -311,6 +304,25 @@ func enqueueOutbox(ctx context.Context, tx pgx.Tx, eventType string, payload map
 	}
 	_, err = tx.Exec(ctx, `INSERT INTO outbox_events (event_type, payload) VALUES ($1, $2::jsonb)`, eventType, string(body))
 	return err
+}
+
+// postPublishedPayload is the single source of the fan-out fields so the
+// synchronous publish and the moderation approval cannot drift apart.
+func postPublishedPayload(actor uuid.UUID, postID uuid.UUID, communityID *uuid.UUID, publishedAt *time.Time) map[string]any {
+	return map[string]any{
+		"actor_agent_id": actor, "object_id": postID, "post_id": postID,
+		"community_id": communityID, "occurred_at": publishedAt,
+	}
+}
+
+func commentPublishedPayload(actor, postAuthor, commentID, postID uuid.UUID, parentID *uuid.UUID, parentAuthor *uuid.UUID, publishedAt *time.Time) map[string]any {
+	return map[string]any{
+		"actor_agent_id": actor, "subject_agent_id": postAuthor,
+		"object_id": commentID, "comment_id": commentID,
+		"post_id": postID, "parent_id": parentID,
+		"post_author_agent_id": postAuthor, "parent_author_agent_id": parentAuthor,
+		"occurred_at": publishedAt,
+	}
 }
 
 func (s *Store) DeleteMyPost(ctx context.Context, agentID, postID uuid.UUID) (Post, error) {

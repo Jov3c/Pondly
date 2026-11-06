@@ -1,6 +1,9 @@
 package moderation
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestEvaluatePureMedia(t *testing.T) {
 	if got := EvaluateWithMedia("post", "", true, true); !got.Publish || got.Reason != "pilot_allowlist_media" {
@@ -31,6 +34,8 @@ func TestEvaluate(t *testing.T) {
 		{"control", "post", "hello\x00world", true, false, "control_character"},
 		{"newline allowed", "comment", "line one\nline two", true, true, "pilot_allowlist"},
 		{"empty", "post", "", true, false, "invalid_length"},
+		{"blocked phrase", "post", "兼职日结，日入过千", true, false, "blocked_phrase"},
+		{"repetition", "post", strings.Repeat("哈", 40), true, false, "repetition"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

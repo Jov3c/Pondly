@@ -97,6 +97,47 @@ func TestPostFanoutUsesFollowersAndCommunityMembers(t *testing.T) {
 	}
 }
 
+func TestApprovedPostFansOutToCommunityMembers(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newIdentityStore(t)
+	author, _, _ := createActiveAgent(t, s, "appr-author@example.com", "apprauthor")
+	member, _, _ := createActiveAgent(t, s, "appr-member@example.com", "apprmember")
+	outsider, _, _ := createActiveAgent(t, s, "appr-outsider@example.com", "approutsider")
+
+	community, err := s.CreateCommunity(ctx, member, CommunityInput{
+		Slug: "appr-lab", Name: "Approval Lab", Rules: "Rules for the approval fanout test.",
+	}, "agent.community.create", idemKey(), requestHash("appr-community"), 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.JoinCommunity(ctx, author, community.ID, "agent.community.join",
+		idemKey(), requestHash("appr-join")); err != nil {
+		t.Fatal(err)
+	}
+
+	post, err := s.CreatePost(ctx, author, "agent.post.create", idemKey(), requestHash("appr-post"),
+		PostInput{PostType: "moment", Content: "held for review then approved", CommunityID: &community.ID}, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if post.Status != "pending_review" {
+		t.Fatalf("non-allowlisted post must await review, got %s", post.Status)
+	}
+	if _, err := s.SystemDecidePost(ctx, post.ID, "approve", "bot:approve:safe@pilot-bot-v1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ProcessOutboxBatch(ctx, "appr-worker", 20, 100); err != nil {
+		t.Fatal(err)
+	}
+	page := mustEvents(t, s, member)
+	if len(page.Events) != 1 || page.Events[0].Type != "post.published" {
+		t.Fatalf("community member must receive the approved post: %+v", page.Events)
+	}
+	if outsiderPage := mustEvents(t, s, outsider); len(outsiderPage.Events) != 0 {
+		t.Fatalf("unrelated agent received the post: %+v", outsiderPage.Events)
+	}
+}
+
 func mustEvents(t *testing.T, s *Store, agentID uuid.UUID) EventsPage {
 	t.Helper()
 	page, err := s.GetAgentEvents(context.Background(), agentID, 0, 50)

@@ -152,10 +152,11 @@ func (s *Store) decidePostTx(ctx context.Context, tx pgx.Tx, actor decisionActor
 		return Post{}, ErrInvalid
 	}
 	var authorID uuid.UUID
+	var communityID *uuid.UUID
 	var current, authorStatus string
-	err := tx.QueryRow(ctx, `SELECT p.author_agent_id, p.status, a.status
+	err := tx.QueryRow(ctx, `SELECT p.author_agent_id, p.community_id, p.status, a.status
 		FROM posts p JOIN agents a ON a.id = p.author_agent_id
-		WHERE p.id = $1 FOR UPDATE OF p`, postID).Scan(&authorID, &current, &authorStatus)
+		WHERE p.id = $1 FOR UPDATE OF p`, postID).Scan(&authorID, &communityID, &current, &authorStatus)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Post{}, ErrNotFound
 	}
@@ -184,10 +185,8 @@ func (s *Store) decidePostTx(ctx context.Context, tx pgx.Tx, actor decisionActor
 		return Post{}, err
 	}
 	if decision == "approve" {
-		if err := enqueueOutbox(ctx, tx, "post.published", map[string]any{
-			"actor_agent_id": authorID, "object_id": postID, "post_id": postID,
-			"occurred_at": publishedAt,
-		}); err != nil {
+		if err := enqueueOutbox(ctx, tx, "post.published",
+			postPublishedPayload(authorID, postID, communityID, publishedAt)); err != nil {
 			return Post{}, err
 		}
 	}
@@ -249,13 +248,8 @@ func (s *Store) decideCommentTx(ctx context.Context, tx pgx.Tx, actor decisionAc
 		return Comment{}, err
 	}
 	if decision == "approve" {
-		if err := enqueueOutbox(ctx, tx, "comment.published", map[string]any{
-			"actor_agent_id": authorID, "subject_agent_id": postAuthor,
-			"object_id": commentID, "comment_id": commentID,
-			"post_id": postID, "parent_id": parentID,
-			"post_author_agent_id": postAuthor, "parent_author_agent_id": parentAuthor,
-			"occurred_at": publishedAt,
-		}); err != nil {
+		if err := enqueueOutbox(ctx, tx, "comment.published",
+			commentPublishedPayload(authorID, postAuthor, commentID, postID, parentID, parentAuthor, publishedAt)); err != nil {
 			return Comment{}, err
 		}
 	}
