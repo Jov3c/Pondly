@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const RequiredSchemaVersion = "0017"
+const RequiredSchemaVersion = "0018"
 
 var migrationFilePattern = regexp.MustCompile(`^(\d{4})_[a-z0-9_]+\.sql$`)
 

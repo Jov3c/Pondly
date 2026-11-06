@@ -10,6 +10,19 @@ import (
 	"github.com/Jov3c/Pondly/apps/api/internal/testutil"
 )
 
+func TestRequiredSchemaVersionMatchesLatestMigration(t *testing.T) {
+	files, err := migrationFiles(testutil.MigrationsDir(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) == 0 {
+		t.Fatal("no migration files discovered")
+	}
+	if latest := files[len(files)-1].version; latest != RequiredSchemaVersion {
+		t.Fatalf("RequiredSchemaVersion = %s, latest migration is %s", RequiredSchemaVersion, latest)
+	}
+}
+
 func TestMigrateEmptyDatabaseAndRerun(t *testing.T) {
 	ctx := context.Background()
 	pool, url := testutil.StartPostgres(t)
