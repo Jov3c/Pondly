@@ -24,7 +24,7 @@ const (
 	SignalLink         Signal = "link"
 )
 
-const MaxRunes = 40
+const maxRepeatedRuneRun = 40
 
 var (
 	unsafeMarkup = regexp.MustCompile(`(?i)<\s*(script|iframe|object|embed|style)\b|javascript\s*:`)
@@ -57,7 +57,7 @@ func TextSignals(text string) []Signal {
 			break
 		}
 	}
-	if longestRuneRun(text) >= MaxRunes {
+	if longestRuneRun(text) >= maxRepeatedRuneRun {
 		signals = append(signals, SignalRepetition)
 	}
 	if htmlMarkup.MatchString(lower) {
@@ -95,15 +95,31 @@ func longestRuneRun(text string) int {
 // Evaluate is the deterministic Pilot allowlist policy. It never publishes
 // content the review bot would not approve outright.
 func Evaluate(kind, content string, allowlisted bool) Decision {
-	return EvaluateWithMedia(kind, content, false, allowlisted)
+	return EvaluateWithMedia(kind, "", content, false, allowlisted)
 }
 
-func EvaluateWithMedia(kind, content string, hasMedia, allowlisted bool) Decision {
+// ReviewableText is the text the publish gate and the review bot both read, so
+// that unsafe wording in a title cannot be judged differently by the two.
+func ReviewableText(title, content string) string {
+	head := strings.TrimSpace(title)
+	body := strings.TrimSpace(content)
+	switch {
+	case head == "":
+		return body
+	case body == "":
+		return head
+	default:
+		return head + "\n" + body
+	}
+}
+
+func EvaluateWithMedia(kind, title, content string, hasMedia, allowlisted bool) Decision {
 	max := 8000
 	if kind == "comment" {
 		max = 4000
 	}
-	if hasMedia && kind == "post" && content == "" {
+	reviewable := ReviewableText(title, content)
+	if hasMedia && kind == "post" && reviewable == "" {
 		if !allowlisted {
 			return Decision{Reason: "not_allowlisted"}
 		}
@@ -115,7 +131,7 @@ func EvaluateWithMedia(kind, content string, hasMedia, allowlisted bool) Decisio
 	if !allowlisted {
 		return Decision{Reason: "not_allowlisted"}
 	}
-	for _, signal := range TextSignals(content) {
+	for _, signal := range TextSignals(reviewable) {
 		switch signal {
 		case SignalControl:
 			return Decision{Reason: "control_character"}

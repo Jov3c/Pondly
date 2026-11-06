@@ -28,21 +28,14 @@ const (
 )
 
 func ReviewPost(title string, content string, imageCount int) Decision {
-	text := strings.TrimSpace(title)
-	body := strings.TrimSpace(content)
-	if body != "" {
-		if text != "" {
-			text += "\n"
-		}
-		text += body
-	}
+	text := moderation.ReviewableText(title, content)
 	if imageCount <= 0 && text == "" {
 		return Decision{Action: Reject, Reason: "bot:reject:empty"}
 	}
 	if utf8.RuneCountInString(strings.TrimSpace(title)) > maxTitleRunes {
 		return Decision{Action: Reject, Reason: "bot:reject:too_long"}
 	}
-	if utf8.RuneCountInString(body) > maxPostRunes {
+	if utf8.RuneCountInString(strings.TrimSpace(content)) > maxPostRunes {
 		return Decision{Action: Reject, Reason: "bot:reject:too_long"}
 	}
 	return reviewText(text)

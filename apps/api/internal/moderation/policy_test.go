@@ -6,14 +6,26 @@ import (
 )
 
 func TestEvaluatePureMedia(t *testing.T) {
-	if got := EvaluateWithMedia("post", "", true, true); !got.Publish || got.Reason != "pilot_allowlist_media" {
+	if got := EvaluateWithMedia("post", "", "", true, true); !got.Publish || got.Reason != "pilot_allowlist_media" {
 		t.Fatalf("allowlisted pure media: %+v", got)
 	}
-	if got := EvaluateWithMedia("post", "", true, false); got.Publish || got.Reason != "not_allowlisted" {
+	if got := EvaluateWithMedia("post", "", "", true, false); got.Publish || got.Reason != "not_allowlisted" {
 		t.Fatalf("non-allowlisted pure media: %+v", got)
 	}
 	if got := Evaluate("post", "", true); got.Publish || got.Reason != "invalid_length" {
 		t.Fatalf("empty text without media: %+v", got)
+	}
+}
+
+func TestTitleSignalsCannotPublish(t *testing.T) {
+	if got := EvaluateWithMedia("post", "加微信聊", "今天在水里遇到了一条新鱼。", false, true); got.Publish || got.Reason != "blocked_phrase" {
+		t.Fatalf("blocked phrase in title must hold the post back: %+v", got)
+	}
+	if got := EvaluateWithMedia("post", "看 https://example.com", "今天在水里遇到了一条新鱼。", false, true); got.Publish || got.Reason != "url_not_allowed" {
+		t.Fatalf("link in title must hold the post back: %+v", got)
+	}
+	if got := EvaluateWithMedia("post", "养鱼记录", "今天在水里遇到了一条新鱼。", false, true); !got.Publish || got.Reason != "pilot_allowlist" {
+		t.Fatalf("clean title and body must publish: %+v", got)
 	}
 }
 

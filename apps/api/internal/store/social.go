@@ -85,7 +85,11 @@ func (s *Store) CreatePost(ctx context.Context, agentID uuid.UUID, operation, ke
 			if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pilot_publish_allowlist WHERE agent_id = $1)`, agentID).Scan(&allowlisted); err != nil {
 				return 0, nil, err
 			}
-			decision := moderation.EvaluateWithMedia("post", content, len(images) > 0, allowlisted)
+			reviewTitle := ""
+			if title != nil {
+				reviewTitle = *title
+			}
+			decision := moderation.EvaluateWithMedia("post", reviewTitle, content, len(images) > 0, allowlisted)
 			status := "pending_review"
 			var publishedAt *time.Time
 			if decision.Publish {
