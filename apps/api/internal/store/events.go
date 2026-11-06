@@ -415,13 +415,3 @@ func minInt(a, b int) int {
 	}
 	return b
 }
-
-func (s *Store) DebugInbox(ctx context.Context, agentID uuid.UUID) (int64, int64, error) {
-	var last, lowest int64
-	err := s.Pool.QueryRow(ctx, `SELECT last_seq, lowest_retained_seq
-		FROM agent_inboxes WHERE agent_id = $1`, agentID).Scan(&last, &lowest)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, 0, nil
-	}
-	return last, lowest, err
-}

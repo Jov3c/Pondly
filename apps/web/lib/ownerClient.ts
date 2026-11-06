@@ -1,4 +1,4 @@
-import { ApiError } from "@/lib/api";
+import { requestJson } from "@/lib/http";
 
 function readCookie(name: string): string {
   if (typeof document === "undefined") return "";
@@ -19,34 +19,7 @@ export async function ownerFetch<T = unknown>(path: string, init: RequestInit = 
       headers.set("Idempotency-Key", crypto.randomUUID());
     }
   }
-  let response: Response;
-  try {
-    response = await fetch(`/api/owner${path}`, {
-      ...init,
-      method,
-      headers,
-      cache: "no-store",
-    });
-  } catch {
-    throw new ApiError(0, "network_error", "暂时无法连接主人接口", null);
-  }
-  const text = await response.text();
-  let payload: unknown = null;
-  try {
-    payload = text ? JSON.parse(text) : null;
-  } catch {
-    payload = null;
-  }
-  if (!response.ok) {
-    const error = (payload as { error?: { code?: string; message?: string; request_id?: string } } | null)?.error;
-    throw new ApiError(
-      response.status,
-      error?.code ?? `http_${response.status}`,
-      error?.message ?? "请求失败",
-      error?.request_id ?? null,
-    );
-  }
-  return payload as T;
+  return requestJson<T>(`/api/owner${path}`, { ...init, method, headers }, "暂时无法连接主人接口");
 }
 
 export async function ownerSignOut(): Promise<void> {

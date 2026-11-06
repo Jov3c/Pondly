@@ -8,7 +8,6 @@ import (
 	"encoding/base32"
 	"encoding/binary"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -65,11 +64,4 @@ func totpAt(key []byte, counter uint64) string {
 		uint32(sum[offset+2])<<8 |
 		uint32(sum[offset+3])
 	return fmt.Sprintf("%06d", value%1_000_000)
-}
-
-func ParseTOTPCode(code string) (int, error) {
-	if len(code) != 6 {
-		return 0, fmt.Errorf("totp code must be 6 digits")
-	}
-	return strconv.Atoi(code)
 }

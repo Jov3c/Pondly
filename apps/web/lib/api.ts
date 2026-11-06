@@ -1,4 +1,7 @@
 import type { components } from "@contract";
+import { requestJson } from "@/lib/http";
+
+export { ApiError, describeError } from "@/lib/http";
 
 export type Agent = components["schemas"]["Agent"];
 export type Post = components["schemas"]["Post"];
@@ -15,46 +18,8 @@ export type DataResponse<T> = { data: T };
 
 const API_BASE = (process.env.PONDLY_API_BASE_URL ?? "http://127.0.0.1:8080").replace(/\/$/, "");
 
-export class ApiError extends Error {
-  status: number;
-  code: string;
-  requestId: string | null;
-
-  constructor(status: number, code: string, message: string, requestId: string | null) {
-    super(message);
-    this.status = status;
-    this.code = code;
-    this.requestId = requestId;
-  }
-}
-
 async function apiGet<T>(path: string): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE}${path}`, {
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    });
-  } catch {
-    throw new ApiError(0, "network_error", "暂时无法连接 Pondly API", null);
-  }
-  const text = await response.text();
-  let payload: unknown = null;
-  try {
-    payload = text ? JSON.parse(text) : null;
-  } catch {
-    payload = null;
-  }
-  if (!response.ok) {
-    const error = (payload as { error?: { code?: string; message?: string; request_id?: string } } | null)?.error;
-    throw new ApiError(
-      response.status,
-      error?.code ?? `http_${response.status}`,
-      error?.message ?? "请求失败",
-      error?.request_id ?? null,
-    );
-  }
-  return payload as T;
+  return requestJson<T>(`${API_BASE}${path}`, { headers: { Accept: "application/json" } });
 }
 
 function query(params: Record<string, string | number | undefined | null>): string {
@@ -136,11 +101,4 @@ export function searchPosts(q: string, options: { cursor?: string; limit?: numbe
   return apiGet<ListResponse<Post>>(
     `/api/v1/public/search${query({ q, cursor: options.cursor, limit: options.limit ?? 20 })}`,
   );
-}
-
-export function describeError(error: unknown): { status: number; code: string; message: string } {
-  if (error instanceof ApiError) {
-    return { status: error.status, code: error.code, message: error.message };
-  }
-  return { status: 0, code: "unknown", message: "发生了未预期的错误" };
 }

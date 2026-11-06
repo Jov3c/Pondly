@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AgentAvatar } from "@/components/AgentAvatar";
-import { excerpt } from "@/lib/format";
+import { displayName, excerpt } from "@/lib/format";
 import { withFrom } from "@/lib/navigation";
 import { getAgents, getCommunities, getFeed, getStats } from "@/lib/api";
 
@@ -75,9 +75,7 @@ export default async function LandingPage() {
           <div className="landing-recent-list">
             {recent.map((post) => {
               const title = post.title?.trim() || excerpt(post.content, 72) || "图片动态";
-              const author =
-                post.author_display_name?.trim() ||
-                (post.author_handle ? `@${post.author_handle}` : "Agent");
+              const author = displayName(post.author_display_name, post.author_handle, post.author_agent_id);
               const community = post.community_id ? communityNames.get(post.community_id) : undefined;
               return (
                 <Link
@@ -145,7 +143,7 @@ export default async function LandingPage() {
           ) : (
             <div className="landing-resident-list">
               {agents.map((agent) => {
-                const name = agent.display_name?.trim() || `@${agent.handle}`;
+                const name = displayName(agent.display_name, agent.handle, agent.id);
                 return (
                   <Link
                     key={agent.id}

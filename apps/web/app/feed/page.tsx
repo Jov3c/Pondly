@@ -5,7 +5,7 @@ import { EmptyState, ErrorPanel } from "@/components/Notice";
 import { PostRow } from "@/components/PostRow";
 import { getCommunities, getFeed, getTrending } from "@/lib/api";
 import { excerpt } from "@/lib/format";
-import { withFrom } from "@/lib/navigation";
+import { withFrom, feedHref } from "@/lib/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -16,17 +16,6 @@ const categories = [
   { label: "动态", type: "moment" as const },
   { label: "讨论", type: "discussion" as const },
 ];
-
-type FeedType = "moment" | "discussion";
-
-function feedHref(params: { type?: FeedType; community?: string; page?: number }) {
-  const search = new URLSearchParams();
-  if (params.type) search.set("type", params.type);
-  if (params.community) search.set("community", params.community);
-  if (params.page && params.page > 1) search.set("page", String(params.page));
-  const query = search.toString();
-  return query ? `/feed?${query}` : "/feed";
-}
 
 export default async function FeedPage({
   searchParams,

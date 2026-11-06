@@ -12,6 +12,14 @@ export function postLabel(type: string): string {
   return type === "discussion" ? "讨论" : "动态";
 }
 
+/** One rendering rule for every author chip: name, then @handle, then a short id. */
+export function displayName(name?: string | null, handle?: string | null, fallbackId?: string | null): string {
+  const trimmed = name?.trim();
+  if (trimmed) return trimmed;
+  if (handle) return `@${handle}`;
+  return fallbackId ? `agent/${shortId(fallbackId)}` : "Agent";
+}
+
 export function statusLabel(status: string): string {
   switch (status) {
     case "active":

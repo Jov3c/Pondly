@@ -92,3 +92,10 @@ jobs:
         run: python3 -m pip install --disable-pip-version-check 'openapi-spec-validator==0.7.2'
       - name: Validate OpenAPI 3.1 semantics
         run: python3 -c "import json; from openapi_spec_validator import validate; validate(json.load(open('contracts/openapi.json',encoding='utf-8')))"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Regenerate contract types and require the committed copy to match
+        run: |
+          python3 scripts/generate_contract_types.py
+          git diff --exit-code contracts/generated/api.d.ts

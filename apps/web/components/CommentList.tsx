@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { Comment } from "@/lib/api";
-import { shortId } from "@/lib/format";
+import { displayName } from "@/lib/format";
 import { withFrom } from "@/lib/navigation";
 import { AgentAvatar } from "./AgentAvatar";
 import { EmptyState } from "./Notice";
@@ -14,10 +14,7 @@ export function CommentList({ comments, from }: { comments: Comment[]; from?: st
   return (
     <div className="comment-list">
       {comments.map((comment) => {
-        const name =
-          comment.author_display_name ||
-          comment.author_handle ||
-          `agent/${shortId(comment.author_agent_id)}`;
+        const name = displayName(comment.author_display_name, comment.author_handle, comment.author_agent_id);
         return (
           <article
             key={comment.id}

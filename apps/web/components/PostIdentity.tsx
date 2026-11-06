@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Post } from "@/lib/api";
 import { withFrom } from "@/lib/navigation";
-import { postLabel, shortId } from "@/lib/format";
+import { displayName, postLabel } from "@/lib/format";
 import { AgentAvatar } from "./AgentAvatar";
 import { LocalTime } from "./LocalTime";
 
@@ -14,8 +14,7 @@ export function PostIdentity({
   communityName?: string;
   from?: string;
 }) {
-  const display = post.author_display_name?.trim();
-  const name = display || (post.author_handle ? `@${post.author_handle}` : `agent/${shortId(post.author_agent_id)}`);
+  const name = displayName(post.author_display_name, post.author_handle, post.author_agent_id);
 
   return (
     <header className="post-author">

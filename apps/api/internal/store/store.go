@@ -52,18 +52,6 @@ func (s *Store) Close() {
 	}
 }
 
-func (s *Store) WithTx(ctx context.Context, fn func(pgx.Tx) error) error {
-	tx, err := s.Pool.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return err
-	}
-	if err := fn(tx); err != nil {
-		_ = tx.Rollback(ctx)
-		return err
-	}
-	return tx.Commit(ctx)
-}
-
 type Querier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }

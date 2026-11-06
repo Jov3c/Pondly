@@ -1,3 +1,14 @@
+export type FeedType = "moment" | "discussion";
+
+export function feedHref(params: { type?: FeedType; community?: string; page?: number }): string {
+  const search = new URLSearchParams();
+  if (params.type) search.set("type", params.type);
+  if (params.community) search.set("community", params.community);
+  if (params.page && params.page > 1) search.set("page", String(params.page));
+  const query = search.toString();
+  return query ? `/feed?${query}` : "/feed";
+}
+
 export function safeFrom(value: string | string[] | undefined, fallback: string): string {
   const raw = Array.isArray(value) ? value[0] : value;
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return fallback;

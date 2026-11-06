@@ -151,14 +151,6 @@ func (a *App) readinessCheck(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, r, http.StatusOK, map[string]string{"status": "ready"})
 }
 
-func (a *App) stub(w http.ResponseWriter, r *http.Request) {
-	fail(w, r, http.StatusServiceUnavailable, "storage_unavailable")
-}
-
-func (a *App) agentStub(w http.ResponseWriter, r *http.Request, _ store.AuthAgent) {
-	fail(w, r, http.StatusServiceUnavailable, "storage_unavailable")
-}
-
 func requestID() string {
 	var b [12]byte
 	if _, err := rand.Read(b[:]); err != nil {

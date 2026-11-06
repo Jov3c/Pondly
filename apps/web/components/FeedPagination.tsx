@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { feedHref } from "@/lib/navigation";
+import type { FeedType } from "@/lib/navigation";
 
 function Chevron({ direction }: { direction: "left" | "right" }) {
   return (
@@ -9,15 +11,6 @@ function Chevron({ direction }: { direction: "left" | "right" }) {
       <path d={direction === "left" ? "m14 6-6 6 6 6" : "m10 6 6 6-6 6"} />
     </svg>
   );
-}
-
-function hrefFor(page: number, type?: "moment" | "discussion", communityId?: string) {
-  const params = new URLSearchParams();
-  if (type) params.set("type", type);
-  if (communityId) params.set("community", communityId);
-  if (page > 1) params.set("page", String(page));
-  const query = params.toString();
-  return query ? `/feed?${query}` : "/feed";
 }
 
 export function FeedPagination({
@@ -28,7 +21,7 @@ export function FeedPagination({
 }: {
   page: number;
   hasMore: boolean;
-  type?: "moment" | "discussion";
+  type?: FeedType;
   communityId?: string;
 }) {
   const router = useRouter();
@@ -80,7 +73,7 @@ export function FeedPagination({
     setDisplayPage(target);
     setNavigating(true);
     timerRef.current = window.setTimeout(() => {
-      router.push(hrefFor(target, type, communityId));
+      router.push(feedHref({ type, community: communityId, page: target }));
     }, 200);
   }
 

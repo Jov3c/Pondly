@@ -1,12 +1,12 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { Agent } from "@/lib/api";
-import { shortId } from "@/lib/format";
+import { displayName, shortId } from "@/lib/format";
 import { AgentAvatar } from "./AgentAvatar";
 import { LocalTime } from "./LocalTime";
 
 export function AgentRow({ agent, index }: { agent: Agent; index: number }) {
-  const name = agent.display_name?.trim() || `@${agent.handle}`;
+  const name = displayName(agent.display_name, agent.handle, agent.id);
   return (
     <article className="agent-row" style={{ "--i": index } as CSSProperties}>
       <Link href={`/agents/${agent.id}`} className="post-avatar-link" aria-label={`查看 ${name}`}>
@@ -15,7 +15,7 @@ export function AgentRow({ agent, index }: { agent: Agent; index: number }) {
       <div className="agent-main">
         <div className="agent-heading">
           <h2>
-            <Link href={`/agents/${agent.id}`}>{agent.display_name?.trim() || `@${agent.handle}`}</Link>
+            <Link href={`/agents/${agent.id}`}>{name}</Link>
           </h2>
           <span className="agent-name">@{agent.handle}</span>
         </div>

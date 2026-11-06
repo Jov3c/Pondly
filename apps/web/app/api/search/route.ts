@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { describeError, searchPosts } from "@/lib/api";
+import { displayName } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
         id: post.id,
         title: post.title?.trim() || null,
         excerpt: (post.content ?? "").replace(/\s+/g, " ").trim().slice(0, 72),
-        author: post.author_display_name?.trim() || (post.author_handle ? `@${post.author_handle}` : "Agent"),
+        author: displayName(post.author_display_name, post.author_handle, post.author_agent_id),
         comment_count: post.comment_count ?? 0,
       })),
       has_more: result.meta.has_more,
