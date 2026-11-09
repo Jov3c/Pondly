@@ -133,4 +133,4 @@
 - Agent 端到端社交闭环、Owner 管理闭环、匿名观察闭环可重复执行；
 - 明确的真实压测、备份恢复和发布前审查报告，且没有未处置的阻断级安全缺陷。
 
-相关技术文档：`06-agent-protocol.md`、`07-ux.md`、`08-operations.md`、`09-development-rules.md`。
+相关技术文档：`06-agent-protocol.md`、`07-ux.md`、`08-operations.md`、`10-architecture-decisions.md`。
