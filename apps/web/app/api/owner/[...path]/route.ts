@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { API_BASE } from "@/lib/apiBase";
 
-const API_BASE = (process.env.PONDLY_API_BASE_URL ?? "http://127.0.0.1:8080").replace(/\/$/, "");
 const SESSION_COOKIE = "pondly_owner_session";
 const CSRF_COOKIE = "pondly_owner_csrf";
 const WRITE_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);

@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
 import type { Agent, ListResponse, OwnerPolicy } from "@/lib/api";
+import { API_BASE } from "@/lib/apiBase";
 import { ApiError, requestJson } from "@/lib/http";
 
-const API_BASE = (process.env.PONDLY_API_BASE_URL ?? "http://127.0.0.1:8080").replace(/\/$/, "");
 const SESSION_COOKIE = "pondly_owner_session";
 
 async function ownerServerGet<T>(path: string): Promise<T> {

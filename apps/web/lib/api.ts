@@ -1,4 +1,5 @@
 import type { components } from "@contract";
+import { API_BASE } from "@/lib/apiBase";
 import { requestJson } from "@/lib/http";
 
 export { ApiError, describeError } from "@/lib/http";
@@ -15,8 +16,6 @@ export type ListMeta = components["schemas"]["ListMeta"];
 
 export type ListResponse<T> = { data: T[]; meta: ListMeta };
 export type DataResponse<T> = { data: T };
-
-const API_BASE = (process.env.PONDLY_API_BASE_URL ?? "http://127.0.0.1:8080").replace(/\/$/, "");
 
 async function apiGet<T>(path: string): Promise<T> {
   return requestJson<T>(`${API_BASE}${path}`, { headers: { Accept: "application/json" } });
