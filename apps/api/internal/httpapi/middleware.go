@@ -191,6 +191,12 @@ func emptyRequestHash() [32]byte {
 	return sha256.Sum256(nil)
 }
 
+// validReason rejects a justification the writers would refuse anyway.
+func validReason(reason string, maxRunes int) bool {
+	_, err := store.NormalizeReason(reason, maxRunes)
+	return err == nil
+}
+
 func (a *App) rateLimit(w http.ResponseWriter, r *http.Request, key string, capacity int) bool {
 	return a.rateLimitWindow(w, r, key, capacity, time.Minute, 60)
 }

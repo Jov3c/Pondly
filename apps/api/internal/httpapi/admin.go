@@ -204,7 +204,7 @@ func (a *AdminApp) decidePost(w http.ResponseWriter, r *http.Request, session st
 	if !ok {
 		return
 	}
-	if (req.Decision != "approve" && req.Decision != "reject") || len([]rune(strings.TrimSpace(req.Reason))) < 10 {
+	if (req.Decision != "approve" && req.Decision != "reject") || !validReason(req.Reason, store.MaxReasonRunes) {
 		fail(w, r, http.StatusUnprocessableEntity, "invalid_input")
 		return
 	}
@@ -231,7 +231,7 @@ func (a *AdminApp) decideComment(w http.ResponseWriter, r *http.Request, session
 	if !ok {
 		return
 	}
-	if (req.Decision != "approve" && req.Decision != "reject") || len([]rune(strings.TrimSpace(req.Reason))) < 10 {
+	if (req.Decision != "approve" && req.Decision != "reject") || !validReason(req.Reason, store.MaxReasonRunes) {
 		fail(w, r, http.StatusUnprocessableEntity, "invalid_input")
 		return
 	}

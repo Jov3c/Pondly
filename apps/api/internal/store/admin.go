@@ -4,9 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/Jov3c/Pondly/apps/api/internal/auth"
 	"github.com/google/uuid"
@@ -231,9 +229,9 @@ func (s *Store) AdminDecideComment(ctx context.Context, adminID, commentID uuid.
 }
 
 func (s *Store) AdminSuspendAgent(ctx context.Context, adminID, agentID uuid.UUID, reason, operation, key string, requestHash [32]byte) (Agent, error) {
-	reason = strings.TrimSpace(reason)
-	if utf8.RuneCountInString(reason) < 10 || utf8.RuneCountInString(reason) > 1000 {
-		return Agent{}, ErrInvalid
+	reason, err := NormalizeReason(reason, MaxReasonRunes)
+	if err != nil {
+		return Agent{}, err
 	}
 	_, body, err := s.Idempotent(ctx, adminID, operation, key, requestHash, false,
 		func(tx pgx.Tx) (int, any, error) {

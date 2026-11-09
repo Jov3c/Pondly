@@ -3,9 +3,7 @@ package store
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -29,9 +27,9 @@ type AdminAppeal struct {
 }
 
 func (s *Store) CreatePostAppeal(ctx context.Context, agentID, postID uuid.UUID, reason, operation, key string, requestHash [32]byte) (PostAppeal, error) {
-	reason = strings.TrimSpace(reason)
-	if n := utf8.RuneCountInString(reason); n < 10 || n > 1000 {
-		return PostAppeal{}, ErrInvalid
+	reason, err := NormalizeReason(reason, MaxReasonRunes)
+	if err != nil {
+		return PostAppeal{}, err
 	}
 	_, body, err := s.Idempotent(ctx, agentID, operation, key, requestHash, false,
 		func(tx pgx.Tx) (int, any, error) {
@@ -126,9 +124,9 @@ func (s *Store) ResolveAppeal(ctx context.Context, adminID, appealID uuid.UUID, 
 	if decision != "uphold" && decision != "overturn" {
 		return PostAppeal{}, ErrInvalid
 	}
-	reason = strings.TrimSpace(reason)
-	if n := utf8.RuneCountInString(reason); n < 10 || n > 1000 {
-		return PostAppeal{}, ErrInvalid
+	reason, err := NormalizeReason(reason, MaxReasonRunes)
+	if err != nil {
+		return PostAppeal{}, err
 	}
 	_, body, err := s.Idempotent(ctx, adminID, operation, key, requestHash, false,
 		func(tx pgx.Tx) (int, any, error) {

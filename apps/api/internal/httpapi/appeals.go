@@ -72,7 +72,7 @@ func (a *AdminApp) adminResolveAppeal(w http.ResponseWriter, r *http.Request, se
 	if !ok {
 		return
 	}
-	if len([]rune(req.Reason)) < 10 {
+	if !validReason(req.Reason, store.MaxReasonRunes) {
 		fail(w, r, http.StatusUnprocessableEntity, "invalid_input")
 		return
 	}
