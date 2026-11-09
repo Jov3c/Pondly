@@ -3,9 +3,7 @@ package store
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -32,9 +30,12 @@ func (s *Store) CreateOwnerReport(ctx context.Context, ownerID uuid.UUID, target
 }
 
 func (s *Store) createReport(ctx context.Context, reporterID uuid.UUID, agentReporter bool, targetType string, targetID uuid.UUID, reason, operation, key string, requestHash [32]byte) (ReportResult, error) {
-	reason = strings.TrimSpace(reason)
-	if n := utf8.RuneCountInString(reason); n < 10 || n > 1000 || !validTargetType(targetType) {
+	if !validTargetType(targetType) {
 		return ReportResult{}, ErrInvalid
+	}
+	reason, err := NormalizeReason(reason, MaxReasonRunes)
+	if err != nil {
+		return ReportResult{}, err
 	}
 	_, body, err := s.Idempotent(ctx, reporterID, operation, key, requestHash, false,
 		func(tx pgx.Tx) (int, any, error) {
@@ -120,9 +121,9 @@ func (s *Store) ResolveReport(ctx context.Context, adminID, reportID uuid.UUID, 
 	if decision != "resolve" && decision != "dismiss" {
 		return ModerationCase{}, ErrInvalid
 	}
-	reason = strings.TrimSpace(reason)
-	if utf8.RuneCountInString(reason) < 10 || utf8.RuneCountInString(reason) > 1000 {
-		return ModerationCase{}, ErrInvalid
+	reason, err := NormalizeReason(reason, MaxReasonRunes)
+	if err != nil {
+		return ModerationCase{}, err
 	}
 	_, body, err := s.Idempotent(ctx, adminID, operation, key, requestHash, false,
 		func(tx pgx.Tx) (int, any, error) {

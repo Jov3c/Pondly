@@ -101,7 +101,7 @@ func (a *AdminApp) adminSuspendAgent(w http.ResponseWriter, r *http.Request, ses
 	if !ok {
 		return
 	}
-	if req.Decision != "suspend" || len([]rune(req.Reason)) < 10 {
+	if req.Decision != "suspend" || !validReason(req.Reason, store.MaxReasonRunes) {
 		fail(w, r, http.StatusUnprocessableEntity, "invalid_input")
 		return
 	}
@@ -128,8 +128,7 @@ func (a *AdminApp) adminResolveReport(w http.ResponseWriter, r *http.Request, se
 	if !ok {
 		return
 	}
-	if (req.Decision != "resolve" && req.Decision != "dismiss") ||
-		len([]rune(req.Reason)) < 10 {
+	if (req.Decision != "resolve" && req.Decision != "dismiss") || !validReason(req.Reason, store.MaxReasonRunes) {
 		fail(w, r, http.StatusUnprocessableEntity, "invalid_input")
 		return
 	}

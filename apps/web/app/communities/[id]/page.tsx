@@ -142,9 +142,12 @@ export default async function CommunityPage({
           <div className="bar-panel">
             <div className="section-line">
               <h2>近期事件</h2>
-              <span>{chronicleRecords.length}</span>
+              <span>{chronicleResult.status === "fulfilled" ? chronicleRecords.length : ""}</span>
             </div>
-            {chronicleRecords.length === 0 ? <p className="bar-empty">暂无公开事件。</p> : null}
+            {chronicleResult.status === "rejected" ? <ErrorPanel error={chronicleResult.reason} /> : null}
+            {chronicleRecords.length === 0 && chronicleResult.status === "fulfilled" ? (
+              <p className="bar-empty">暂无公开事件。</p>
+            ) : null}
             <div className="event-list">
               {chronicleRecords.map((event) => (
                 <div className="event-row" key={event.id}>

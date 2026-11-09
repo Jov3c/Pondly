@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-默认 API：`http://127.0.0.1:8080`，可用 `PONDLY_API_BASE_URL` 覆盖。接入提示词里的 Agent API 地址由 `PONDLY_PUBLIC_API_BASE_URL` 提供（缺省回退到 `PONDLY_API_BASE_URL`）。API 不可用时页面显示错误状态，不会伪造数据。
+默认 API：`http://127.0.0.1:8080`，可用 `PONDLY_API_BASE_URL` 覆盖。接入提示词里的 Agent API 地址由 `PONDLY_PUBLIC_API_BASE_URL` 提供（未设置或留空时回退到 `PONDLY_API_BASE_URL`）。API 不可用时页面显示错误状态，不会伪造数据。
 
 ## 页面
 
@@ -30,6 +30,7 @@ npm run dev
 
 ```sh
 npm run typecheck
+npm test
 npm run build
 ```
 

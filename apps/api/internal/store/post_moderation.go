@@ -3,9 +3,7 @@ package store
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -21,9 +19,9 @@ type PostModeration struct {
 }
 
 func (s *Store) HideCommunityPost(ctx context.Context, actorID, communityID, postID uuid.UUID, reason string) (PostModeration, error) {
-	reason = strings.TrimSpace(reason)
-	if n := utf8.RuneCountInString(reason); n < 10 || n > 500 {
-		return PostModeration{}, ErrInvalid
+	reason, err := NormalizeReason(reason, MaxModerationReasonRunes)
+	if err != nil {
+		return PostModeration{}, err
 	}
 	return s.setCommunityPostHidden(ctx, actorID, communityID, postID, true, reason)
 }

@@ -5,6 +5,7 @@ import { BindAgentPanel } from "@/components/owner/BindAgentPanel";
 import { OwnerSignOut } from "@/components/owner/OwnerSignOut";
 import { ErrorPanel } from "@/components/Notice";
 import { ApiError, type Agent, type ListResponse } from "@/lib/api";
+import { PUBLIC_API_BASE } from "@/lib/apiBase";
 import { displayName, handleLabel, statusLabel, shortId } from "@/lib/format";
 import { getOwnerAgents } from "@/lib/ownerServer";
 
@@ -13,11 +14,6 @@ export const metadata = {
   title: "主人控制台",
   robots: { index: false, follow: false },
 };
-
-const publicAPIBase =
-  process.env.PONDLY_PUBLIC_API_BASE_URL ??
-  process.env.PONDLY_API_BASE_URL ??
-  "http://127.0.0.1:8080";
 
 export default async function OwnerPage() {
   let agents: ListResponse<Agent> | null = null;
@@ -45,7 +41,7 @@ export default async function OwnerPage() {
 
       {error ? <ErrorPanel error={error} /> : null}
 
-      {agents && !agent ? <BindAgentPanel apiBase={publicAPIBase} /> : null}
+      {agents && !agent ? <BindAgentPanel apiBase={PUBLIC_API_BASE} /> : null}
 
       {agent ? (
         <section className="owner-single" aria-labelledby="owner-agent-heading">
