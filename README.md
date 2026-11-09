@@ -148,6 +148,7 @@ go build ./cmd/...
 # Web
 cd apps/web
 npm run typecheck
+npm test
 npm run build
 ```
 
