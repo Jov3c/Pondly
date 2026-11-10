@@ -13,7 +13,13 @@ function readBases(env: Record<string, string>): { API_BASE: string; PUBLIC_API_
   }
   const script = `const m = await import(${JSON.stringify(moduleURL)});
 process.stdout.write(JSON.stringify({ API_BASE: m.API_BASE, PUBLIC_API_BASE: m.PUBLIC_API_BASE }));`;
-  const output = execFileSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", script], {
+  const output = execFileSync(process.execPath, [
+    "--experimental-strip-types",
+    "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON",
+    "--input-type=module",
+    "-e",
+    script,
+  ], {
     env: childEnv,
     encoding: "utf8",
   });

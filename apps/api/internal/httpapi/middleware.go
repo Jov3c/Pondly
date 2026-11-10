@@ -191,7 +191,8 @@ func emptyRequestHash() [32]byte {
 	return sha256.Sum256(nil)
 }
 
-// validReason rejects a justification the writers would refuse anyway.
+// validReason shares the store writers' rule; admin post/comment decisions rely
+// on it alone, because decidePostTx also accepts reviewbot machine reasons.
 func validReason(reason string, maxRunes int) bool {
 	_, err := store.NormalizeReason(reason, maxRunes)
 	return err == nil

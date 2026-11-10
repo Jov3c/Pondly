@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -97,6 +98,30 @@ func callAdminAPI(t *testing.T, h http.Handler, method, path string, payload any
 	return apiResponse{Code: rec.Code, Body: rec.Body.Bytes(), Header: rec.Header(), Cookies: rec.Result().Cookies()}
 }
 
+func adminSession(t *testing.T, env adminEnv) (string, string) {
+	t.Helper()
+	code, err := auth.TOTPCode(env.totpSecret, *env.now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := callAdminAPI(t, env.admin, "POST", "/admin/v1/auth/sign-in", map[string]string{
+		"username": env.username, "password": env.password, "totp_code": code,
+	}, "", "", "")
+	if resp.Code != 200 {
+		t.Fatalf("admin sign-in: %d %s", resp.Code, resp.Body)
+	}
+	var cookie string
+	for _, c := range resp.Cookies {
+		if c.Name == adminCookieName(false) {
+			cookie = c.Value
+		}
+	}
+	if cookie == "" {
+		t.Fatal("admin cookie missing")
+	}
+	return cookie, dataMap(t, resp)["csrf_token"].(string)
+}
+
 func TestAdminConsoleShowsPendingQueue(t *testing.T) {
 	env := newAdminEnv(t)
 	agentID, _ := seedActiveAgent(t, env.db, "console@example.com", "consoleadmin")
@@ -130,25 +155,7 @@ func TestAdminConsoleShowsPendingQueue(t *testing.T) {
 		t.Fatal("login page leaked pending content")
 	}
 
-	code, err := auth.TOTPCode(env.totpSecret, *env.now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	signIn := callAdminAPI(t, env.admin, "POST", "/admin/v1/auth/sign-in", map[string]string{
-		"username": env.username, "password": env.password, "totp_code": code,
-	}, "", "", "")
-	if signIn.Code != 200 {
-		t.Fatalf("admin sign-in: %d %s", signIn.Code, signIn.Body)
-	}
-	var adminCookie string
-	for _, cookie := range signIn.Cookies {
-		if cookie.Name == adminCookieName(false) {
-			adminCookie = cookie.Value
-		}
-	}
-	if adminCookie == "" {
-		t.Fatal("admin cookie missing")
-	}
+	adminCookie, _ := adminSession(t, env)
 
 	resp = callAdminAPI(t, env.admin, "GET", "/admin/", nil, adminCookie, "", "")
 	body := string(resp.Body)
@@ -204,23 +211,7 @@ func TestAdminHTTPPrivateModeration(t *testing.T) {
 	if resp.Code != 401 {
 		t.Fatalf("wrong password: %d %s", resp.Code, resp.Body)
 	}
-	resp = callAdminAPI(t, env.admin, "POST", "/admin/v1/auth/sign-in", map[string]string{
-		"username": env.username, "password": env.password, "totp_code": code,
-	}, "", "", "")
-	if resp.Code != 200 {
-		t.Fatalf("admin sign-in: %d %s", resp.Code, resp.Body)
-	}
-	data := dataMap(t, resp)
-	csrf := data["csrf_token"].(string)
-	var adminCookie string
-	for _, cookie := range resp.Cookies {
-		if cookie.Name == adminCookieName(false) {
-			adminCookie = cookie.Value
-		}
-	}
-	if adminCookie == "" {
-		t.Fatal("admin cookie missing")
-	}
+	adminCookie, csrf := adminSession(t, env)
 
 	resp = callAdminAPI(t, env.admin, "POST", "/admin/v1/posts/"+post.ID.String()+"/decision", map[string]string{
 		"decision": "approve", "reason": "pilot approval",
@@ -275,5 +266,55 @@ func TestAdminHTTPPrivateModeration(t *testing.T) {
 	}, adminCookie, csrf, "admin-decision-key-2")
 	if resp.Code != 401 {
 		t.Fatalf("revoked admin session: %d %s", resp.Code, resp.Body)
+	}
+}
+
+func TestAdminDecisionEnforcesReasonBounds(t *testing.T) {
+	env := newAdminEnv(t)
+	cookie, csrf := adminSession(t, env)
+	agentID, _ := seedActiveAgent(t, env.db, "reason-bounds@example.com", "reasonbounds")
+	post, err := env.db.CreatePost(context.Background(), agentID, "agent.post.create",
+		"reason-bounds-post", [32]byte{1}, store.PostInput{PostType: "moment", Content: "pending reason bounds"}, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	basePost, err := env.db.CreatePost(context.Background(), agentID, "agent.post.create",
+		"reason-bounds-base", [32]byte{2}, store.PostInput{PostType: "moment", Content: "base post"}, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.db.AdminDecidePost(context.Background(), env.adminID, basePost.ID,
+		"approve", "approve base post", [32]byte{3}, "admin.post.decision", "reason-bounds-base-approve"); err != nil {
+		t.Fatal(err)
+	}
+	comment, err := env.db.CreateComment(context.Background(), agentID, basePost.ID,
+		"agent.comment.create", "reason-bounds-comment", [32]byte{4}, store.CommentInput{Content: "pending reason bounds"}, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name  string
+		runes int
+		want  int
+	}{
+		{"short", 9, http.StatusUnprocessableEntity},
+		{"over", 1001, http.StatusUnprocessableEntity},
+		{"cap", 1000, http.StatusOK},
+	}
+	for _, target := range []struct {
+		path string
+		idem string
+	}{
+		{"/admin/v1/posts/" + post.ID.String() + "/decision", "reason-bound-post-"},
+		{"/admin/v1/comments/" + comment.ID.String() + "/decision", "reason-bound-comment-"},
+	} {
+		for _, tc := range cases {
+			resp := callAdminAPI(t, env.admin, "POST", target.path, map[string]string{
+				"decision": "approve", "reason": strings.Repeat("理", tc.runes),
+			}, cookie, csrf, target.idem+tc.name)
+			if resp.Code != tc.want {
+				t.Fatalf("%s reason %d runes: %d %s", target.path, tc.runes, resp.Code, resp.Body)
+			}
+		}
 	}
 }
