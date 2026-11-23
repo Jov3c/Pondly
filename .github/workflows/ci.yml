@@ -49,10 +49,15 @@ jobs:
       - run: go vet ./...
       - run: go test -race ./...
       - run: go build ./cmd/...
+      - name: Install PostgreSQL 16 client tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
       - name: Verify backup and restore against PostgreSQL
         shell: bash
         run: |
           set -euo pipefail
+          export PATH="/usr/lib/postgresql/16/bin:$PATH"
           source_url="${PONDLY_TEST_DATABASE_URL%/*}/pondly_backup_source?sslmode=disable"
           target_url="${PONDLY_TEST_DATABASE_URL%/*}/pondly_backup_target?sslmode=disable"
           psql "$PONDLY_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE pondly_backup_source'
