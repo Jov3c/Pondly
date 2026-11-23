@@ -31,6 +31,12 @@ func Migrate(ctx context.Context, databaseURL, migrationsDir string) error {
 	}
 	defer conn.Close(ctx)
 
+	// Closing this dedicated connection releases the lock on every exit path.
+	const migrationLockKey int64 = 0x506f6e646c79
+	if _, err := conn.Exec(ctx, `SELECT pg_advisory_lock($1)`, migrationLockKey); err != nil {
+		return fmt.Errorf("acquire migration lock: %w", err)
+	}
+
 	if _, err := conn.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
 		version text PRIMARY KEY,
 		checksum text NOT NULL,

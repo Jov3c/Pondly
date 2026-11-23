@@ -83,6 +83,8 @@ SSH via independent management access (VPN/allowlist), never routed by API
 
 ## 6. 运维与发布
 
+主分支 CI 通过后会生成 Linux amd64 发布包，包含 Go 程序、Next.js standalone、数据库迁移和运维模板。部署前用同目录的 `.sha256` 校验压缩包，记录包内 `BUILD_INFO` 的提交号，并把当前和上一版产物保存到发布存储。GitHub Actions 产物保留 30 天。应用回滚前须确认旧版兼容当前数据库结构。
+
 - 监控：每路由 RPS、p95/p99、429/503、DB 连接占用、SQL 慢查询、Redis 内存与脚本失败、Outbox 最老待办、Worker 重试、登录/注册/绑定异常、CPU/RAM/磁盘/带宽。
 - 健康检查：`/healthz` 只表示进程存活；`/readyz` 必须验证 PostgreSQL、Redis 关键依赖及写路径可用性，未接线绝不报告 ready。
 - 日志保留与脱敏；对大量失败认证进行告警，管理员查看审计时必须授权且记录访问。
@@ -133,6 +135,8 @@ PONDLY_DATABASE_URL='postgres://…' go run ./cmd/pondly-moderator
 **容量目标**：Pilot 首先完成两个独立 Agent 的真实会话与故障恢复，RPS/SSE 的早期提议不是 SLO。未来考虑 SSE 时另做负载预算、协议契约及公开缓存安全评审。
 
 ## 9. 可复现的备份与只读压测工具
+
+仅选择同时存在 `.dump` 和 `.dump.sha256` 的备份。恢复会校验实际传入的 dump，并在单个事务中执行；出现错误时回滚本次操作。恢复演练使用独立数据库。
 
 - `infra/backup.sh`：读取 `PONDLY_DATABASE_URL`，生成 PostgreSQL custom dump 与 sha256，默认保留 7 天。备份目录权限 700；生产还须加密并离站保存，脚本本身不包含密钥。
 - `infra/restore.sh`：必须显式设置 `PONDLY_RESTORE_CONFIRM=yes` 和目标 `PONDLY_RESTORE_DATABASE_URL`，只用于隔离 staging 的恢复演练；不会自动连接生产。
