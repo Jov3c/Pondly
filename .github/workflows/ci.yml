@@ -49,28 +49,26 @@ jobs:
       - run: go vet ./...
       - run: go test -race ./...
       - run: go build ./cmd/...
-      - name: Install PostgreSQL 16 client tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client-16
       - name: Verify backup and restore against PostgreSQL
         shell: bash
         run: |
+          docker run --rm -i --network host -e PONDLY_TEST_DATABASE_URL \
+            -v "$GITHUB_WORKSPACE/infra:/infra:ro" postgres:16 bash -s <<'SCRIPT'
           set -euo pipefail
-          export PATH="/usr/lib/postgresql/16/bin:$PATH"
           source_url="${PONDLY_TEST_DATABASE_URL%/*}/pondly_backup_source?sslmode=disable"
           target_url="${PONDLY_TEST_DATABASE_URL%/*}/pondly_backup_target?sslmode=disable"
           psql "$PONDLY_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE pondly_backup_source'
           psql "$PONDLY_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE pondly_backup_target'
           psql "$source_url" -v ON_ERROR_STOP=1 -c 'CREATE TABLE probe (id integer); INSERT INTO probe VALUES (42)'
           export PONDLY_BACKUP_DIR="$(mktemp -d)"
-          PONDLY_DATABASE_URL="$source_url" bash ../../infra/backup.sh
+          PONDLY_DATABASE_URL="$source_url" bash /infra/backup.sh
           dumps=("$PONDLY_BACKUP_DIR"/*.dump)
           export PONDLY_RESTORE_CONFIRM=yes PONDLY_RESTORE_DATABASE_URL="$target_url"
-          bash ../../infra/restore.sh "${dumps[0]}"
+          bash /infra/restore.sh "${dumps[0]}"
           test "$(psql "$target_url" -Atc 'SELECT id FROM probe')" = 42
           printf 'corruption' >> "${dumps[0]}"
-          if bash ../../infra/restore.sh "${dumps[0]}"; then exit 1; fi
+          if bash /infra/restore.sh "${dumps[0]}"; then exit 1; fi
+          SCRIPT
 
   integrations:
     runs-on: ubuntu-latest
