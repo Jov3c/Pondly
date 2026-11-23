@@ -9,8 +9,15 @@ fi
 dump="${1:?usage: restore.sh <postgresql custom dump>}"
 : "${dump:?dump path required}"
 
-if [[ -f "$dump.sha256" ]]; then
-  sha256sum --check "$dump.sha256"
+if [[ ! -f "$dump.sha256" ]]; then
+  echo "refusing restore: missing checksum for $dump" >&2
+  exit 1
 fi
-pg_restore --clean --if-exists --no-owner --dbname="$PONDLY_RESTORE_DATABASE_URL" "$dump"
+read -r expected _ < "$dump.sha256"
+actual="$(sha256sum < "$dump")"
+if [[ ! "$expected" =~ ^[0-9a-f]{64}$ || "${actual%% *}" != "$expected" ]]; then
+  echo "refusing restore: checksum mismatch for $dump" >&2
+  exit 1
+fi
+pg_restore --single-transaction --exit-on-error --clean --if-exists --no-owner --dbname="$PONDLY_RESTORE_DATABASE_URL" "$dump"
 echo "restore complete: $dump"

@@ -49,6 +49,23 @@ jobs:
       - run: go vet ./...
       - run: go test -race ./...
       - run: go build ./cmd/...
+      - name: Verify backup and restore against PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_url="${PONDLY_TEST_DATABASE_URL%/*}/pondly_backup_source?sslmode=disable"
+          target_url="${PONDLY_TEST_DATABASE_URL%/*}/pondly_backup_target?sslmode=disable"
+          psql "$PONDLY_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE pondly_backup_source'
+          psql "$PONDLY_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE pondly_backup_target'
+          psql "$source_url" -v ON_ERROR_STOP=1 -c 'CREATE TABLE probe (id integer); INSERT INTO probe VALUES (42)'
+          export PONDLY_BACKUP_DIR="$(mktemp -d)"
+          PONDLY_DATABASE_URL="$source_url" bash ../../infra/backup.sh
+          dumps=("$PONDLY_BACKUP_DIR"/*.dump)
+          export PONDLY_RESTORE_CONFIRM=yes PONDLY_RESTORE_DATABASE_URL="$target_url"
+          bash ../../infra/restore.sh "${dumps[0]}"
+          test "$(psql "$target_url" -Atc 'SELECT id FROM probe')" = 42
+          printf 'corruption' >> "${dumps[0]}"
+          if bash ../../infra/restore.sh "${dumps[0]}"; then exit 1; fi
 
   integrations:
     runs-on: ubuntu-latest
@@ -100,3 +117,47 @@ jobs:
         run: |
           python3 scripts/generate_contract_types.py
           git diff --exit-code contracts/generated/api.d.ts
+
+  release-bundle:
+    needs: [api, integrations, web, contract]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Build API binaries
+        working-directory: apps/api
+        run: |
+          mkdir -p ../../bundle/bin
+          go build -trimpath -o ../../bundle/bin/ ./cmd/...
+      - name: Build standalone web
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm run build
+          cp -a .next/standalone ../../bundle/web
+          cp -a .next/static ../../bundle/web/.next/static
+          if [ -d public ]; then cp -a public ../../bundle/web/public; fi
+      - name: Package deployment files
+        run: |
+          cp -a db infra bundle/
+          printf 'commit=%s\nbuilt_at=%s\n' "$GITHUB_SHA" "$(date -u +%FT%TZ)" > bundle/BUILD_INFO
+          archive="pondly-$GITHUB_SHA-linux-amd64.tar.gz"
+          tar -czf "$archive" -C bundle .
+          sha256sum "$archive" > "$archive.sha256"
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          name: pondly-${{ github.sha }}-linux-amd64
+          path: |
+            pondly-*.tar.gz
+            pondly-*.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 30
